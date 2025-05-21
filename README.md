@@ -45,7 +45,7 @@ jobs:
           fetch-depth: 0  # Ensures complete history for comparison
 
       - name: Run update-cff-authors
-        uses: willynilly/action-update-cff-authors@v1
+        uses: willynilly/action-update-cff-authors@v1.0.0
         with:
           base_branch: main
           head_branch: ${{ github.head_ref }}
@@ -147,10 +147,10 @@ To use this action in your repository:
 - ✅ You must reference this action in your workflow as:
 
   ```yaml
-  uses: willynilly/action-update-cff-authors@v1
+  uses: willynilly/action-update-cff-authors@v1.0.0
   ```
 
-- ✅ For reproducibility, it is recommended to use version tags like `@v1.0.0` or `@v1`.
+- ✅ For reproducibility, it is recommended to use version tags like `@v1.0.0`.
 
 ---
 
