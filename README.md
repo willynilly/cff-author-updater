@@ -1,4 +1,3 @@
-
 # Update CFF Authors from Pull Request Contributions
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
@@ -47,6 +46,7 @@ jobs:
       - name: Run update-cff-authors
         uses: willynilly/action-update-cff-authors@v1.0.0
         with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           base_branch: main
           head_branch: ${{ github.head_ref }}
           cff_path: CITATION.cff
@@ -65,6 +65,7 @@ jobs:
 
 | Name                          | Description                                                      | Required | Default        |
 |-------------------------------|------------------------------------------------------------------|----------|----------------|
+| `github_token`               | GitHub token used for API requests                              | ✅ Yes   | —              |
 | `base_branch`                 | Base branch of the PR                                            | ✅ Yes   | —              |
 | `head_branch`                 | Source branch of the PR                                          | ✅ Yes   | —              |
 | `cff_path`                    | Path to your `CITATION.cff` file                                 | ❌ No    | `CITATION.cff` |
@@ -143,7 +144,7 @@ To use this action in your repository:
 
 - ✅ A `CITATION.cff` file must exist at the root of your repository, or you must specify a custom path using the `cff_path` input.
 - ✅ Python is automatically set up by the action using `actions/setup-python`.
-- ✅ No additional secrets or tokens are required — this action uses GitHub's built-in `${{ secrets.GITHUB_TOKEN }}`.
+- ✅ You must pass GitHub’s built-in `${{ secrets.GITHUB_TOKEN }}` to the `github_token` input.
 - ✅ You must reference this action in your workflow as:
 
   ```yaml

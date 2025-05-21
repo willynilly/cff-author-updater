@@ -2,6 +2,10 @@ name: Update CFF Authors from Pull Request Contributions
 description: Add GitHub and raw commit authors to the authors section of CITATION.cff
 
 inputs:
+  github_token:
+    description: GitHub token for API access
+    required: true
+    type: string
   base_branch:
     description: The base branch to compare against (target of PR)
     required: true
@@ -75,7 +79,7 @@ runs:
       run: python update_cff_authors.py
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
         REPO: ${{ github.repository }}
         BASE_BRANCH: ${{ inputs.base_branch }}
         HEAD_BRANCH: ${{ inputs.head_branch }}
