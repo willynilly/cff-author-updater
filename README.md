@@ -36,15 +36,16 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write
+      pull-requests: write  # Needed for PR comments
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out code
+        uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Ensures complete history for comparison
 
       - name: Run update-cff-authors
-        uses: ./.github/actions/update-cff-authors
+        uses: willynilly/action-update-cff-authors@v1
         with:
           base_branch: main
           head_branch: ${{ github.head_ref }}
@@ -136,24 +137,22 @@ Only contributors with **no matching identity** are added.
 
 ---
 
-
----
-
 ## 📦 Requirements
 
 To use this action in your repository:
 
 - ✅ A `CITATION.cff` file must exist at the root of your repository, or you must specify a custom path using the `cff_path` input.
-- ✅ Python must be available (the action installs dependencies using `pip`).
+- ✅ Python is automatically set up by the action using `actions/setup-python`.
 - ✅ No additional secrets or tokens are required — this action uses GitHub's built-in `${{ secrets.GITHUB_TOKEN }}`.
-- ✅ You must give the workflow appropriate permissions:
-  ```yaml
-  permissions:
-    contents: read
-    pull-requests: write
-  ```
-- ✅ The action must be checked into your repository at `.github/actions/update-cff-authors/`.
+- ✅ You must reference this action in your workflow as:
 
+  ```yaml
+  uses: willynilly/action-update-cff-authors@v1
+  ```
+
+- ✅ For reproducibility, it is recommended to use version tags like `@v1.0.0` or `@v1`.
+
+---
 
 ## 📝 License
 

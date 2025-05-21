@@ -229,6 +229,16 @@ def main():
         )
 
 
+def validate_cff(cff_path):
+    import subprocess
+
+    try:
+        subprocess.run(["cffconvert", "--validate", "--infile", cff_path], check=True)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
 def process_contributors(
     contributors, cff_path, token, repo, pr_number, output_file, flags
 ):
@@ -236,6 +246,10 @@ def process_contributors(
     path = Path(cff_path)
     if not path.exists():
         print(f"{cff_path} not found.")
+        return
+
+    if not validate_cff(cff_path):
+        print(f"Validation failed for input CFF file: {cff_path}")
         return
 
     with open(path, "r") as f:
@@ -330,8 +344,6 @@ def process_contributors(
                 if email:
                     entry["email"] = email
                 entry["type"] = "entity"
-                if user.get("email"):
-                    entry["email"] = user["email"]
             else:
                 entry["given-names"] = name_parts[0]
                 entry["family-names"] = name_parts[1] if len(name_parts) > 1 else ""
@@ -358,6 +370,10 @@ def process_contributors(
 
     with open(cff_path, "w") as f:
         yaml.dump(cff, f, sort_keys=False)
+
+    if not validate_cff(cff_path):
+        print(f"Validation failed for output CFF file: {cff_path}")
+        return
 
     with open(output_file, "a") as f:
         f.write(f"new_users={','.join(new_users)}\n")

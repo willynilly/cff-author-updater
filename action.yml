@@ -69,10 +69,10 @@ runs:
       with:
         python-version: "3.x"
 
-    - run: pip install requests pyyaml
+    - run: pip install requests pyyaml cffconvert
 
     - id: update_cff_authors
-      run: python .github/actions/update-cff-authors/update_cff_authors.py
+      run: python update_cff_authors.py
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         REPO: ${{ github.repository }}
