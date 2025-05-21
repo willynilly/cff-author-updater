@@ -1,4 +1,3 @@
-
 name: Update CFF Authors from Pull Request Contributions
 description: Add GitHub and raw commit authors to the authors section of CITATION.cff
 
@@ -70,9 +69,11 @@ runs:
         python-version: "3.x"
 
     - run: pip install requests pyyaml cffconvert
+      shell: bash
 
     - id: update_cff_authors
       run: python update_cff_authors.py
+      shell: bash
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         REPO: ${{ github.repository }}
