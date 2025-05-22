@@ -97,6 +97,8 @@ def collect_commit_contributors(token, repo, base, head, include_coauthors=True)
             if name or email:
                 contributors.add(key)
                 contributor_metadata[key] = {"sha": sha}
+            else:
+                contributor_metadata[("unknown", None)] = {"sha": sha}
 
         if include_coauthors:
             for line in c.get("commit", {}).get("message", "").splitlines():
@@ -302,6 +304,14 @@ def process_contributors(
         )
 
     for contributor in contributors:
+        if isinstance(contributor, tuple) and not contributor[0] and not contributor[1]:
+            sha = contributor_metadata.get(contributor, {}).get("sha", "")
+            sha_note = f"(commit: `{sha[:7]}`)" if sha else ""
+            warnings.append(
+                f"- Skipped contributor with no name and no email {sha_note}"
+            )
+            continue
+
         entry = {}
         identifier = ""
         sha = contributor_metadata.get(contributor, {}).get("sha", "")

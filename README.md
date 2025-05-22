@@ -1,3 +1,4 @@
+
 # Update CFF Authors from Pull Request Contributions
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
@@ -119,9 +120,18 @@ If a commit or co-author entry lacks a GitHub account (i.e. appears as a raw nam
 - If a name has only a single part (e.g. no `family-names`), the contributor is **retained as an `entity`**, and a warning is posted with the commit SHA.
 - ORCID search is attempted to enrich metadata when a name is full enough (two parts).
 
-#### Fields:
-- `person`: `given-names`, `family-names`, `email`, `orcid`
-- `entity`: `name`, `email` (if available), `alias` (optional)
+#### Field Mapping:
+
+| Name Present | Email Present | Result   | Notes                                 |
+|--------------|---------------|----------|---------------------------------------|
+| ✅ Full       | ✅ Yes         | `person` | Uses `given-names`, `family-names`, `email` |
+| ✅ Incomplete | ✅ Yes         | `entity` | Not enough to split into name parts   |
+| ❌ No         | ✅ Yes         | `entity` | No name, email only                   |
+| ✅ Full       | ❌ No          | `person` | If name can be split                  |
+| ✅ Incomplete | ❌ No          | `entity` | Treated as entity due to lack of detail |
+| ❌ No         | ❌ No          | Skipped  | Warning is logged                     |
+
+> ⚠️ "Full" means it has a first name (i.e., `given-names`) and last name (i.e.,`family-names`). "Incomplete" means it lacks either a first or last name.
 
 > ⚠️ Contributors with missing `family-names` or emails are preserved as `entity` entries and clearly marked in warnings.
 
