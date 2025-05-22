@@ -160,6 +160,13 @@ Before adding a contributor, the following identifiers are checked against exist
 
 A contributor is only added if **none of the above match**.
 
+#### Author Type Enforcement
+
+- Contributors **must have both a given name and family name** to be treated as a `person`.
+- If only a single name part is available (e.g., "Plato"), the contributor is recorded as an `entity`.
+- This prevents ambiguity and ensures consistent deduplication behavior.
+
+
 ---
 
 ## 📦 Requirements

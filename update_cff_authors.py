@@ -294,6 +294,15 @@ def process_contributors(
     logs = []
 
     def is_same_person(a, b):
+        # Ensure comparison is between same types
+        if a.get("type") != b.get("type"):
+            return False
+
+        if a["type"] == "entity":
+            return (
+                a.get("name", "").strip().lower() == b.get("name", "").strip().lower()
+            )
+
         return (
             a.get("alias", "").lower() == b.get("alias", "").lower()
             or a.get("email", "").lower() == b.get("email", "").lower()
@@ -334,11 +343,12 @@ def process_contributors(
                     entry["alias"] = contributor
                     entry["type"] = "person"
                 else:
-                    entry = {"type": "entity", "name": full_name, "alias": contributor}
+                    entry["name"] = full_name
+                    entry["alias"] = contributor
+                    entry["type"] = "entity"
                     warnings.append(
-                        f"- @{contributor}: Missing family name, treated as entity instead of person.{sha_note}"
+                        f"- @{contributor}: Only one name part found, treated as entity for deduplication consistency.{sha_note}"
                     )
-                    identifier = contributor.lower()
                     if any(is_same_person(a, entry) for a in cff["authors"]):
                         warnings.append(f"- {identifier}: Already exists in CFF file.")
                         continue
@@ -416,14 +426,12 @@ def process_contributors(
                     else:
                         warnings.append(f"- `{full_name}`: No ORCID found.")
                 else:
-                    entry = {
-                        "type": "entity",
-                        "name": full_name,
-                    }
+                    entry["name"] = full_name
                     if email:
                         entry["email"] = email
+                    entry["type"] = "entity"
                     warnings.append(
-                        f"- `{full_name}`: Missing family name, treated as entity instead of person.{sha_note}"
+                        f"- `{full_name}`: Only one name part found, treated as entity for deduplication consistency.{sha_note}"
                     )
 
             identifier = email or name.lower()
