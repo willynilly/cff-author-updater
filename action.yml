@@ -76,7 +76,7 @@ runs:
       shell: bash
 
     - id: update_cff_authors
-      run: python ${{ github.action_path }}/update_cff_authors.py
+      run: python ${{ github.action_path }}/main.py
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
