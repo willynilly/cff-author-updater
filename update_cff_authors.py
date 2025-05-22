@@ -178,17 +178,27 @@ def search_orcid(full_name, email=None, logs=None):
 def main():
     repo = os.environ["REPO"]
     token = os.environ["GITHUB_TOKEN"]
-    base = os.environ["BASE_BRANCH"]
-    head = os.environ["HEAD_BRANCH"]
     cff_path = os.environ.get("CFF_PATH", "CITATION.cff")
     output_file = os.environ.get("GITHUB_OUTPUT", "/tmp/github_output.txt")
     pr_number = None
+
     if os.path.exists(os.environ.get("GITHUB_EVENT_PATH", "")):
         with open(os.environ["GITHUB_EVENT_PATH"], "r") as f:
             event = json.load(f)
             pr_number = event.get("number") or event.get("pull_request", {}).get(
                 "number"
             )
+            if "pull_request" in event:
+                head_repo = event["pull_request"]["head"]["repo"]["full_name"]
+                head_branch = event["pull_request"]["head"]["ref"]
+                base_branch = event["pull_request"]["base"]["ref"]
+                repo_for_compare = head_repo
+            else:
+                print("This workflow only supports pull_request events.")
+                return
+    else:
+        print("GITHUB_EVENT_PATH is missing.")
+        return
 
     flags = {
         "commits": os.environ.get("AUTHORSHIP_FOR_PR_COMMITS", "true").lower()
@@ -211,7 +221,11 @@ def main():
     if flags["commits"]:
         contributors.update(
             collect_commit_contributors(
-                token, repo, base, head, flags["include_coauthors"]
+                token,
+                repo_for_compare,
+                base_branch,
+                head_branch,
+                flags["include_coauthors"],
             )
         )
     if pr_number:
@@ -227,6 +241,10 @@ def main():
         process_contributors(
             contributors, cff_path, token, repo, pr_number, output_file, flags
         )
+
+
+if __name__ == "__main__":
+    main()
 
 
 def validate_cff(cff_path):
