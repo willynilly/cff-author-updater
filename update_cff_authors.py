@@ -243,10 +243,6 @@ def main():
         )
 
 
-if __name__ == "__main__":
-    main()
-
-
 def validate_cff(cff_path):
     import subprocess
 
