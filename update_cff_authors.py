@@ -79,26 +79,35 @@ def collect_commit_contributors(token, repo, base, head, include_coauthors=True)
     data = r.json()
     commits = data.get("commits", [])
     contributors = set()
+    contributor_metadata = {}
     coauthor_regex = re.compile(r"^Co-authored-by:\s*(.+?)\s*<(.+?)>$", re.IGNORECASE)
+
     for c in commits:
-        author = c.get("author")
+        sha = c.get("sha")
         commit_author = c.get("commit", {}).get("author", {})
-        if author and author.get("login"):
-            contributors.add(author["login"])
+        github_author = c.get("author")
+
+        if github_author and github_author.get("login"):
+            contributors.add(github_author["login"])
+            contributor_metadata[github_author["login"]] = {"sha": sha}
         elif commit_author:
             name = commit_author.get("name")
             email = commit_author.get("email")
+            key = (name, email)
             if name or email:
-                contributors.add((name, email))
+                contributors.add(key)
+                contributor_metadata[key] = {"sha": sha}
 
         if include_coauthors:
             for line in c.get("commit", {}).get("message", "").splitlines():
                 match = coauthor_regex.match(line.strip())
                 if match:
                     name, email = match.groups()
-                    if name or email:
-                        contributors.add((name.strip(), email.strip()))
-    return sorted(contributors)
+                    key = (name.strip(), email.strip())
+                    contributors.add(key)
+                    contributor_metadata[key] = {"sha": sha}
+
+    return sorted(contributors), contributor_metadata
 
 
 def extract_orcid(text):
@@ -218,16 +227,16 @@ def main():
     }
 
     contributors = set()
+    metadata = {}
     if flags["commits"]:
-        contributors.update(
-            collect_commit_contributors(
-                token,
-                repo_for_compare,
-                base_branch,
-                head_branch,
-                flags["include_coauthors"],
-            )
+        contributors, metadata = collect_commit_contributors(
+            token,
+            repo_for_compare,
+            base_branch,
+            head_branch,
+            flags["include_coauthors"],
         )
+
     if pr_number:
         metadata_flags = {
             "authorship_for_pr_reviews": flags["reviews"],
@@ -239,7 +248,7 @@ def main():
             collect_metadata_contributors(token, repo, pr_number, metadata_flags)
         )
         process_contributors(
-            contributors, cff_path, token, repo, pr_number, output_file, flags
+            contributors, cff_path, token, repo, pr_number, output_file, flags, metadata
         )
 
 
@@ -254,9 +263,15 @@ def validate_cff(cff_path):
 
 
 def process_contributors(
-    contributors, cff_path, token, repo, pr_number, output_file, flags
+    contributors,
+    cff_path,
+    token,
+    repo,
+    pr_number,
+    output_file,
+    flags,
+    contributor_metadata,
 ):
-
     path = Path(cff_path)
     if not path.exists():
         print(f"{cff_path} not found.")
@@ -289,6 +304,9 @@ def process_contributors(
     for contributor in contributors:
         entry = {}
         identifier = ""
+        sha = contributor_metadata.get(contributor, {}).get("sha", "")
+        sha_note = f" (commit: `{sha[:7]}`)" if sha else ""
+
         if isinstance(contributor, str):
             user_url = f"https://api.github.com/users/{contributor}"
             resp = requests.get(user_url, headers={"Authorization": f"token {token}"})
@@ -315,7 +333,7 @@ def process_contributors(
                 else:
                     entry = {"type": "entity", "name": full_name, "alias": contributor}
                     warnings.append(
-                        f"- @{contributor}: Missing family name, treated as entity instead of person."
+                        f"- @{contributor}: Missing family name, treated as entity instead of person.{sha_note}"
                     )
                     identifier = contributor.lower()
                     if any(is_same_person(a, entry) for a in cff["authors"]):
@@ -374,7 +392,6 @@ def process_contributors(
                     entry["email"] = email
                 entry["type"] = "entity"
             else:
-
                 if len(name_parts) > 1:
                     entry["given-names"] = name_parts[0]
                     entry["family-names"] = name_parts[1]
@@ -398,7 +415,7 @@ def process_contributors(
                     if email:
                         entry["email"] = email
                     warnings.append(
-                        f"- `{full_name}`: Missing family name, treated as entity instead of person."
+                        f"- `{full_name}`: Missing family name, treated as entity instead of person.{sha_note}"
                     )
 
             identifier = email or name.lower()

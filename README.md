@@ -115,12 +115,15 @@ When a contributor is associated with a GitHub account:
 If a commit or co-author entry lacks a GitHub account (i.e. appears as a raw name/email):
 
 - These are **initially treated as `entities`**.
-- If the name + email match an existing CFF `person`, the contributor is promoted to `person`.
-- ORCID search is attempted to enrich metadata.
+- If both a name and email are present, and the contributor matches an existing `person`, they are promoted to `person`.
+- If a name has only a single part (e.g. no `family-names`), the contributor is **retained as an `entity`**, and a warning is posted with the commit SHA.
+- ORCID search is attempted to enrich metadata when a name is full enough (two parts).
 
 #### Fields:
 - `person`: `given-names`, `family-names`, `email`, `orcid`
-- `entity`: `name`, `email`, `alias` (optional)
+- `entity`: `name`, `email` (if available), `alias` (optional)
+
+> ⚠️ Contributors with missing `family-names` or emails are preserved as `entity` entries and clearly marked in warnings.
 
 ---
 
@@ -134,7 +137,9 @@ Before adding a contributor, the following identifiers are checked against exist
 4. Full name (`given-names` + `family-names`)
 5. Entity name
 
-Only contributors with **no matching identity** are added.
+A contributor is only added if **none of the above match**.
+
+> Warnings for skipped or incomplete entries (e.g. missing names or emails) include the related commit SHA for traceability.
 
 ---
 
