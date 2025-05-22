@@ -27,21 +27,25 @@ This GitHub Action adds contributors to the `authors:` section of your `CITATION
 name: Contributor Check on PR
 
 on:
-  pull_request:
+  pull_request_target:
     branches: ["main"]
+
+permissions:
+  contents: read
+  pull-requests: write  # Needed for posting PR comments
 
 jobs:
   contributor-check:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write  # Needed for PR comments
 
     steps:
-      - name: Check out code
+      - name: Check out PR code safely
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Ensures complete history for comparison
+          # Pulls the actual code from the PR (fork) without executing its workflows
+          ref: ${{ github.event.pull_request.head.sha }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
 
       - name: Run update-cff-authors
         uses: willynilly/action-update-cff-authors@v1.0.0

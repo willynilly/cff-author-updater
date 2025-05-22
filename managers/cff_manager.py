@@ -55,14 +55,14 @@ class CffManager:
 
     def process_contributors(
         self,
-        contributors,
-        cff_path,
-        token,
-        repo,
-        pr_number,
-        output_file,
-        flags,
-        contributor_metadata,
+        contributors: set,
+        cff_path: str,
+        token: str,
+        repo: str,
+        pr_number: str,
+        output_file: str,
+        flags: dict,
+        contributor_metadata: dict,
     ):
         path: Path = Path(cff_path)
         if not path.exists():
@@ -240,5 +240,12 @@ class CffManager:
 
         if flags["post_comment"] and pr_number:
             self.github_manager.post_pull_request_comment(
-                new_users, cff_path, cff, warnings, logs, token, repo, pr_number
+                new_users=new_users,
+                cff_path=cff_path,
+                cff=cff,
+                warnings=warnings,
+                logs=logs,
+                token=token,
+                repo=repo,
+                pr_number=pr_number,
             )
