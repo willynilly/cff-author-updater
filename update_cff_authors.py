@@ -231,13 +231,14 @@ def main():
     contributors = set()
     metadata = {}
     if flags["commits"]:
-        contributors, metadata = collect_commit_contributors(
+        commit_contributors, metadata = collect_commit_contributors(
             token,
             repo_for_compare,
             base_branch,
             head_branch,
             flags["include_coauthors"],
         )
+        contributors = set(commit_contributors)
 
     if pr_number:
         metadata_flags = {
