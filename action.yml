@@ -75,16 +75,8 @@ runs:
     - run: pip install requests pyyaml cffconvert
       shell: bash
 
-    - name: Print working directory for debugging
-      run: pwd
-      shell: bash
-
-    - name: Recursive file listing for debugging
-      run: ls -alhR
-      shell: bash
-
     - id: update_cff_authors
-      run: python update_cff_authors.py
+      run: python ${{ github.action_path }}/update_cff_authors.py
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
