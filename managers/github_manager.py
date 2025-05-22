@@ -193,8 +193,20 @@ class GithubManager:
         payload = {"body": comment_body}
         if existing_comment:
             comment_id = existing_comment["id"]
-            requests.patch(
+            print("posting to existing PR comment")
+            print("url", f"{comments_url}/{comment_id}")
+            print("headers", headers)
+            print("payload", payload)
+            resp: requests.Response = requests.patch(
                 f"{comments_url}/{comment_id}", headers=headers, json=payload
             )
+            resp.raise_for_status()
         else:
-            requests.post(comments_url, headers=headers, json=payload)
+            print("posting new PR comment")
+            print("url", comments_url)
+            print("headers", headers)
+            print("payload", payload)
+            resp: requests.Response = requests.post(
+                comments_url, headers=headers, json=payload
+            )
+            resp.raise_for_status()
