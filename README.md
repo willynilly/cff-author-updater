@@ -1,4 +1,3 @@
-
 # Update CFF Authors from Pull Request Contributions
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
@@ -118,22 +117,34 @@ If a commit or co-author entry lacks a GitHub account (i.e. appears as a raw nam
 - These are **initially treated as `entities`**.
 - If both a name and email are present, and the contributor matches an existing `person`, they are promoted to `person`.
 - If a name has only a single part (e.g. no `family-names`), the contributor is **retained as an `entity`**, and a warning is posted with the commit SHA.
+- If only an email is provided (no name), the contributor is skipped with a warning.
 - ORCID search is attempted to enrich metadata when a name is full enough (two parts).
 
-#### Field Mapping:
-
-| Name Present | Email Present | Result   | Notes                                 |
-|--------------|---------------|----------|---------------------------------------|
-| ✅ Full       | ✅ Yes         | `person` | Uses `given-names`, `family-names`, `email` |
-| ✅ Incomplete | ✅ Yes         | `entity` | Not enough to split into name parts   |
-| ❌ No         | ✅ Yes         | `entity` | No name, email only                   |
-| ✅ Full       | ❌ No          | `person` | If name can be split                  |
-| ✅ Incomplete | ❌ No          | `entity` | Treated as entity due to lack of detail |
-| ❌ No         | ❌ No          | Skipped  | Warning is logged                     |
-
-> ⚠️ "Full" means it has a first name (i.e., `given-names`) and last name (i.e.,`family-names`). "Incomplete" means it lacks either a first or last name.
+#### Fields:
+- `person`: `given-names`, `family-names`, `email`, `orcid`
+- `entity`: `name`, `email` (if available), `alias` (optional)
 
 > ⚠️ Contributors with missing `family-names` or emails are preserved as `entity` entries and clearly marked in warnings.
+
+---
+
+### 📋 Contributor Metadata Handling Table
+
+**Definitions:**
+- **Full name**: A name containing both given and family parts (e.g. `"Jane Doe"`)
+- **Partial name**: A name with only one part (e.g. `"Jane"`)
+
+| Contributor Type            | Example Name | Email Present | Name Present      | GitHub Username Present | Example Username | Action                                                     |
+|----------------------------|---------------|---------------|--------------------|--------------------------|------------------|------------------------------------------------------------|
+| GitHub User (individual)   | Jane Doe      | ✅ Yes         | ✅ Full            | ✅ Yes                   | `jdoe`           | Added as `person`                                          |
+| GitHub User (organization) | CERN          | ❌ No          | ✅ Yes             | ✅ Yes                   | `cern-official`  | Added as `entity`                                          |
+| Non-GitHub (raw commit)    | Jane Doe      | ✅ Yes         | ✅ Full            | ❌ No                    | —                | Added as `person`                                          |
+| Non-GitHub (raw commit)    | Jane          | ✅ Yes         | ✅ Partial         | ❌ No                    | —                | Added as `entity` with warning                             |
+| Non-GitHub (raw commit)    | *N/A*         | ✅ Yes         | ❌ No              | ❌ No                    | —                | ❌ **Skipped**, warning: name required for CFF entity       |
+| Non-GitHub (raw commit)    | Jane Doe      | ❌ No          | ✅ Full            | ❌ No                    | —                | Added as `entity` with warning if needed                   |
+| Non-GitHub (raw commit)    | *N/A*         | ❌ No          | ❌ No              | ❌ No                    | —                | ❌ **Skipped**, warning: name and email both missing        |
+
+> Warnings for skipped or downgraded contributors include the commit SHA for traceability.
 
 ---
 
@@ -148,8 +159,6 @@ Before adding a contributor, the following identifiers are checked against exist
 5. Entity name
 
 A contributor is only added if **none of the above match**.
-
-> Warnings for skipped or incomplete entries (e.g. missing names or emails) include the related commit SHA for traceability.
 
 ---
 
@@ -169,6 +178,29 @@ To use this action in your repository:
 - ✅ For reproducibility, it is recommended to use version tags like `@v1.0.0`.
 
 ---
+
+
+### 🧩 Mapping Contributor Metadata to CFF Fields
+
+This table describes how contributor metadata from GitHub or commits is mapped to fields in the `CITATION.cff` file:
+
+| Source                         | Metadata Field         | CFF Field              | Notes                                                                 |
+|-------------------------------|------------------------|------------------------|-----------------------------------------------------------------------|
+| GitHub user (individual)      | GitHub username        | `alias`                | Added as `alias` for traceability                                     |
+| GitHub user (individual)      | Profile name (e.g. "Jane Doe") | `given-names`, `family-names` | Split into first and last; if only one part, treated as `entity`     |
+| GitHub user (individual)      | Email (if public)      | `email`                | Optional; used if present                                             |
+| GitHub user (individual)      | ORCID in bio or matched | `orcid`                | Enriched via ORCID public API                                         |
+| GitHub user (organization)    | GitHub username        | `alias`                | Added as `alias`                                                      |
+| GitHub user (organization)    | Org display name       | `name`                 | Mapped to `entity` name                                               |
+| GitHub user (organization)    | Email (if public)      | `email`                | Optional                                                              |
+| Non-GitHub commit author      | Name (e.g. "Jane Doe") | `given-names`, `family-names` or `name` | If two parts → person; one part → `entity`                            |
+| Non-GitHub commit author      | Email                  | `email`                | Used for deduplication and enrichment                                 |
+| Non-GitHub commit author      | ORCID (matched)        | `orcid`                | If found and verified via ORCID API                                   |
+
+> ✅ A contributor is classified as `type: person` only if both `given-names` and `family-names` are present. Otherwise, they are added as `type: entity`.
+
+> ❌ If a contributor has no name and no GitHub username, they are skipped and a warning is posted (including the commit SHA for traceability).
+
 
 ## 📝 License
 

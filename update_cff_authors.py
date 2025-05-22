@@ -298,20 +298,12 @@ def process_contributors(
             or a.get("email", "").lower() == b.get("email", "").lower()
             or a.get("orcid", "").lower() == b.get("orcid", "").lower()
             or (
-                f"{a.get('given-names', '').strip().lower()} {a.get('family-names', '').strip().lower()}"
-                == f"{b.get('given-names', '').strip().lower()} {b.get('family-names', '').strip().lower()}"
+                f"{a.get('given-names', '').strip().lower()} {a.get('family-names', '').strip().lower()}".strip()
+                == f"{b.get('given-names', '').strip().lower()} {b.get('family-names', '').strip().lower()}".strip()
             )
         )
 
     for contributor in contributors:
-        if isinstance(contributor, tuple) and not contributor[0] and not contributor[1]:
-            sha = contributor_metadata.get(contributor, {}).get("sha", "")
-            sha_note = f"(commit: `{sha[:7]}`)" if sha else ""
-            warnings.append(
-                f"- Skipped contributor with no name and no email {sha_note}"
-            )
-            continue
-
         entry = {}
         identifier = ""
         sha = contributor_metadata.get(contributor, {}).get("sha", "")
@@ -397,6 +389,11 @@ def process_contributors(
                         break
 
             if entry_type == "entity" and not matched:
+                if not name.strip():
+                    warnings.append(
+                        f"- Commit author with email `{email}` has no name and was skipped.{sha_note}"
+                    )
+                    continue
                 entry["name"] = name
                 if email:
                     entry["email"] = email
