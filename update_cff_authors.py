@@ -306,10 +306,25 @@ def process_contributors(
             else:
                 full_name = user.get("name") or contributor
                 name_parts = full_name.split(" ", 1)
-                entry["given-names"] = name_parts[0]
-                entry["family-names"] = name_parts[1] if len(name_parts) > 1 else ""
-                entry["alias"] = contributor
-                entry["type"] = "person"
+
+                if len(name_parts) > 1:
+                    entry["given-names"] = name_parts[0]
+                    entry["family-names"] = name_parts[1]
+                    entry["alias"] = contributor
+                    entry["type"] = "person"
+                else:
+                    entry = {"type": "entity", "name": full_name, "alias": contributor}
+                    warnings.append(
+                        f"- @{contributor}: Missing family name, treated as entity instead of person."
+                    )
+                    identifier = contributor.lower()
+                    if any(is_same_person(a, entry) for a in cff["authors"]):
+                        warnings.append(f"- {identifier}: Already exists in CFF file.")
+                        continue
+                    cff["authors"].append(entry)
+                    new_users.append(identifier)
+                    continue
+
                 if user.get("email"):
                     entry["email"] = user["email"]
                 orcid = extract_orcid(user.get("bio"))
@@ -359,20 +374,33 @@ def process_contributors(
                     entry["email"] = email
                 entry["type"] = "entity"
             else:
-                entry["given-names"] = name_parts[0]
-                entry["family-names"] = name_parts[1] if len(name_parts) > 1 else ""
-                if email:
-                    entry["email"] = email
-                entry["type"] = "person"
-                orcid = search_orcid(full_name, email, logs)
-                if orcid and validate_orcid(orcid):
-                    entry["orcid"] = f"https://orcid.org/{orcid}"
-                elif orcid:
-                    warnings.append(
-                        f"- `{full_name}`: ORCID `{orcid}` is invalid or unreachable."
-                    )
+
+                if len(name_parts) > 1:
+                    entry["given-names"] = name_parts[0]
+                    entry["family-names"] = name_parts[1]
+                    if email:
+                        entry["email"] = email
+                    entry["type"] = "person"
+                    orcid = search_orcid(full_name, email, logs)
+                    if orcid and validate_orcid(orcid):
+                        entry["orcid"] = f"https://orcid.org/{orcid}"
+                    elif orcid:
+                        warnings.append(
+                            f"- `{full_name}`: ORCID `{orcid}` is invalid or unreachable."
+                        )
+                    else:
+                        warnings.append(f"- `{full_name}`: No ORCID found.")
                 else:
-                    warnings.append(f"- `{full_name}`: No ORCID found.")
+                    entry = {
+                        "type": "entity",
+                        "name": full_name,
+                    }
+                    if email:
+                        entry["email"] = email
+                    warnings.append(
+                        f"- `{full_name}`: Missing family name, treated as entity instead of person."
+                    )
+
             identifier = email or name.lower()
 
         if any(is_same_person(a, entry) for a in cff["authors"]):
