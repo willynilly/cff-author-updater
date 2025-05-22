@@ -142,9 +142,9 @@ class GithubManager:
 
         marker: str = "<!-- contributor-check-comment -->"
         timestamp = (
-            requests.get("https://worldtimeapi.org/api/timezone/Etc/UTC")
+            requests.get("https://timeapi.io/api/Time/current/zone?timeZone=UTC")
             .json()
-            .get("datetime", "")[:16]
+            .get("dateTime", "")[:16]
             .replace("T", " ")
         )
         commit_sha = os.environ.get("GITHUB_SHA", "")[:7]
