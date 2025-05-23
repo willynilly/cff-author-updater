@@ -148,17 +148,18 @@ class GithubManager:
             .replace("T", " ")
         )
         commit_sha = os.environ.get("GITHUB_SHA", "")[:7]
-        comment_body = f"""{marker}
-    ### New Authors Detected
+        comment_body = f"""
+{marker}
+### New Authors Detected
 
-    **New GitHub Users or Commit Authors:**
-    {chr(10).join(f"- {u}" for u in new_users) if new_users else "_None_"}
+**New GitHub Users or Commit Authors:**
+{chr(10).join(f"- {u}" for u in new_users) if new_users else "_None_"}
 
-    **Updated `{cff_path}` file:**
-    ```yaml
-    {yaml.dump(cff, sort_keys=False)}
-    ```
-        """
+**Updated `{cff_path}` file:**
+```yaml
+{yaml.dump(cff, sort_keys=False)}
+```
+"""
 
         if warnings:
             comment_body += "\n**Warnings & Recommendations:**\n" + "\n".join(warnings)
