@@ -57,15 +57,17 @@ def main():
     cff_manager = CffManager(orcid_manager=orcid_manager, github_manager=github_manager)
 
     contributors: set = set()
-    metadata: dict = {}
+    contributor_metadata: dict = {}
     if flags["commits"]:
-        commit_contributors, metadata = github_manager.collect_commit_contributors(
-            token=token,
-            repo=repo_for_compare,
-            base=base_branch,
-            head=head_branch,
-            include_coauthors=flags["include_coauthors"],
-            bot_blacklist=bot_blacklist,
+        commit_contributors, contributor_metadata = (
+            github_manager.collect_commit_contributors(
+                token=token,
+                repo=repo_for_compare,
+                base=base_branch,
+                head=head_branch,
+                include_coauthors=flags["include_coauthors"],
+                bot_blacklist=bot_blacklist,
+            )
         )
         contributors = set(commit_contributors)
 
@@ -93,7 +95,7 @@ def main():
             pr_number=pr_number,
             output_file=output_file,
             flags=flags,
-            contributor_metadata=metadata,
+            contributor_metadata=contributor_metadata,
             repo_for_compare=repo_for_compare,
         )
 
