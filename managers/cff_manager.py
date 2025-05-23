@@ -24,11 +24,17 @@ class CffManager:
             return False
 
     def is_same_person(self, a: dict, b: dict):
+        a_type: str = self.get_cff_author_type(a)
+        b_type: str = self.get_cff_author_type(b)
+
+        if a_type == "unknown" or b_type == "unknown":
+            raise ValueError("Cannot compare unknown author types.")
+
         # Ensure comparison is between same types
-        if a.get("type") != b.get("type"):
+        if a_type != b_type:
             return False
 
-        if a["type"] == "entity":
+        if a_type == "entity":
             return (
                 a.get("name", "").strip().casefold()
                 == b.get("name", "").strip().casefold()
@@ -44,14 +50,13 @@ class CffManager:
             )
         )
 
-    # normalize authors
-    def normalize_authors(self, authors: list[dict]):
-        n_authors = []
-        for author in authors:
-            if "type" in author:
-                del author["type"]
-                n_authors.append(author)
-        return n_authors
+    def get_cff_author_type(self, author: dict):
+        if "name" in author:
+            return "entity"
+        elif "given-names" in author and "family-names" in author:
+            return "person"
+        else:
+            return "unknown"
 
     def process_contributors(
         self,
@@ -86,22 +91,34 @@ class CffManager:
             entry: dict = {}
             identifier: str = ""
             sha: str = contributor_metadata.get(contributor, {}).get("sha", "")
-            sha_note: str = f" (commit: `{sha[:7]}`)" if sha else ""
+            sha_note: str = (
+                f" (commit: [`{sha[:7]}`](https://github.com/{repo}/commit/{sha}))"
+                if sha
+                else ""
+            )
 
             if isinstance(contributor, str):
+                # Github user contributor
+                identifier: str = contributor.casefold()
                 user_url: str = f"https://api.github.com/users/{contributor}"
                 resp: requests.Response = requests.get(
                     user_url, headers={"Authorization": f"token {token}"}
                 )
+
+                # skip the user if the user is not found
                 if resp.status_code != 200:
+                    warnings.append(
+                        f"- @{contributor}: Unable to fetch user data from GitHub API. Status code: {resp.status_code}{sha_note}"
+                    )
                     continue
+
+                # determine the type of user
                 user = resp.json()
                 user_type = user.get("type")
 
                 if user_type == "Organization":
                     entry["name"] = user.get("name") or contributor
                     entry["alias"] = contributor
-                    entry["type"] = "entity"
                     if user.get("email"):
                         entry["email"] = user["email"]
                 else:
@@ -112,11 +129,9 @@ class CffManager:
                         entry["given-names"] = name_parts[0]
                         entry["family-names"] = name_parts[1]
                         entry["alias"] = contributor
-                        entry["type"] = "person"
                     else:
                         entry["name"] = full_name
                         entry["alias"] = contributor
-                        entry["type"] = "entity"
                         warnings.append(
                             f"- @{contributor}: Only one name part found, treated as entity for deduplication consistency.{sha_note}"
                         )
@@ -144,8 +159,6 @@ class CffManager:
                         )
                     else:
                         warnings.append(f"- @{contributor}: No ORCID found.")
-
-                identifier: str = contributor.casefold()
 
             else:
                 name, email = contributor
@@ -184,14 +197,12 @@ class CffManager:
                     entry["name"] = name
                     if email:
                         entry["email"] = email
-                    entry["type"] = "entity"
                 else:
                     if len(name_parts) > 1:
                         entry["given-names"] = name_parts[0]
                         entry["family-names"] = name_parts[1]
                         if email:
                             entry["email"] = email
-                        entry["type"] = "person"
                         orcid = self.orcid_manager.search_orcid(full_name, email, logs)
                         if orcid and self.orcid_manager.validate_orcid(orcid):
                             entry["orcid"] = f"https://orcid.org/{orcid}"
@@ -205,7 +216,6 @@ class CffManager:
                         entry["name"] = full_name
                         if email:
                             entry["email"] = email
-                        entry["type"] = "entity"
                         warnings.append(
                             f"- `{full_name}`: Only one name part found, treated as entity for deduplication consistency.{sha_note}"
                         )
@@ -218,8 +228,6 @@ class CffManager:
 
             cff["authors"].append(entry)
             new_users.append(identifier)
-
-        cff["authors"] = self.normalize_authors(cff["authors"])
 
         with open(cff_path, "w") as f:
             yaml.dump(cff, f, sort_keys=False)
