@@ -163,12 +163,14 @@ class GithubManager:
             .get("dateTime", "")[:16]
             .replace("T", " ")
         )
-        commit_sha = os.environ.get("GITHUB_SHA", "")[:7]
+        commit_sha = os.environ.get("GITHUB_SHA", "")
+        commit_sha_short = commit_sha[:7]
+        commit_url = f"https://github.com/{repo}/commit/{commit_sha}"
         comment_body = f"""
 {marker}
-### New Authors Detected
+### CFF Authors Review ###
 
-**New GitHub Users or Commit Authors:**
+* New Authors From Pull Request: *
 {chr(10).join(f"- {u}" for u in new_users) if new_users else "_None_"}
 
 **Updated `{cff_path}` file:**
@@ -192,8 +194,8 @@ class GithubManager:
 
         comment_body += f"""
 
-    _Last updated: {timestamp} UTC · Commit `{commit_sha}`_
-    """
+_Last updated: {timestamp} UTC · Commit [`{commit_sha_short}`]({commit_url})_
+"""
 
         headers = {
             "Authorization": f"token {token}",
