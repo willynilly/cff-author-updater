@@ -94,6 +94,7 @@ def main():
             output_file=output_file,
             flags=flags,
             contributor_metadata=metadata,
+            repo_for_compare=repo_for_compare,
         )
 
 

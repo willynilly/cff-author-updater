@@ -68,6 +68,7 @@ class CffManager:
         output_file: str,
         flags: dict,
         contributor_metadata: dict,
+        repo_for_compare: str,
     ):
         path: Path = Path(cff_path)
         if not path.exists():
@@ -92,7 +93,7 @@ class CffManager:
             identifier: str = ""
             sha: str = contributor_metadata.get(contributor, {}).get("sha", "")
             sha_note: str = (
-                f" (commit: [`{sha[:7]}`](https://github.com/{repo}/commit/{sha}))"
+                f" (Commit: [`{sha[:7]}`](https://github.com/{repo_for_compare}/commit/{sha}))"
                 if sha
                 else ""
             )
