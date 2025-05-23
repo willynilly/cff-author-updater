@@ -1,0 +1,13 @@
+{
+  "github.copilot.enable": {
+    "*": true,
+    "plaintext": false,
+    "markdown": false,
+    "scminput": false,
+    "inlineSuggest": true,
+    "enableAutoCompletions": true
+  },
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.autoSearchPaths": true
+
+}

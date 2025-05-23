@@ -35,3 +35,4 @@ jobs:
           authorship_for_pr_issues: true
           authorship_for_pr_issue_comments: true
           authorship_for_pr_comment: true
+          bot_blacklist: github-actions[bot]

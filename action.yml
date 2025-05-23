@@ -54,6 +54,10 @@ inputs:
     required: false
     type: boolean
     default: true
+  bot_blacklist:
+    description: 'Comma-separated list of bot usernames to ignore'
+    required: false
+    default: 'github-actions[bot]'
 
 outputs:
   new_users:

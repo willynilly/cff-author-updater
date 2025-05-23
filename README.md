@@ -12,10 +12,10 @@ This GitHub Action adds contributors to the `authors:` section of your `CITATION
 
 - Updates `authors:` in `CITATION.cff` with contributors from PRs
 - Parses commit authors, co-authors, PR reviewers, and commenters
-- Detects users who opened or commented on linked issues
+- Detects users who opened or commented on linked issues, including pull requests
 - Enriches metadata using GitHub profiles and ORCID lookups
 - Skips duplicate authors using multiple identity checks
-- Posts a pull request comment with the proposed CFF content
+- Posts a pull request comment with the proposed CFF content, which can be manually copied to update the `CITATION.cff`
 
 ---
 
@@ -42,7 +42,6 @@ jobs:
       - name: Check out PR code safely
         uses: actions/checkout@v3
         with:
-          # Pulls the actual code from the PR (fork) without executing its workflows
           ref: ${{ github.event.pull_request.head.sha }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
@@ -61,25 +60,27 @@ jobs:
           authorship_for_pr_issues: true
           authorship_for_pr_issue_comments: true
           authorship_for_pr_comment: true
+          bot_blacklist: github-actions[bot]
 ```
 
 ---
 
 ## 🔗 Inputs
 
-| Name                          | Description                                                      | Required | Default        |
-|-------------------------------|------------------------------------------------------------------|----------|----------------|
-| `github_token`               | GitHub token used for API requests                              | ✅ Yes   | —              |
-| `base_branch`                 | Base branch of the PR                                            | ✅ Yes   | —              |
-| `head_branch`                 | Source branch of the PR                                          | ✅ Yes   | —              |
-| `cff_path`                    | Path to your `CITATION.cff` file                                 | ❌ No    | `CITATION.cff` |
-| `post_comment`                | Whether to comment the updated CFF file on the PR                | ❌ No    | `true`         |
-| `include_coauthors`          | Include co-authors from commit messages                          | ❌ No    | `true`         |
-| `authorship_for_pr_commits`  | Add commit authors and co-authors to authors                     | ❌ No    | `true`         |
-| `authorship_for_pr_reviews`  | Add users who reviewed the PR                                    | ❌ No    | `true`         |
-| `authorship_for_pr_issues`   | Add authors of issues linked to the PR                           | ❌ No    | `true`         |
-| `authorship_for_pr_issue_comments` | Add users who commented on linked issues                  | ❌ No    | `true`         |
-| `authorship_for_pr_comment`  | Add users who commented directly on the PR                       | ❌ No    | `true`         |
+| Name                          | Description                                                      | Required | Default                |
+|-------------------------------|------------------------------------------------------------------|----------|------------------------|
+| `github_token`               | GitHub token used for API requests                              | ✅ Yes   | —                      |
+| `base_branch`                 | Base branch of the PR                                            | ✅ Yes   | —                      |
+| `head_branch`                 | Source branch of the PR                                          | ✅ Yes   | —                      |
+| `cff_path`                    | Path to your `CITATION.cff` file                                 | ❌ No    | `CITATION.cff`         |
+| `post_comment`                | Whether to comment the updated CFF file on the PR                | ❌ No    | `true`                 |
+| `include_coauthors`          | Include co-authors from commit messages                          | ❌ No    | `true`                 |
+| `authorship_for_pr_commits`  | Add commit authors and co-authors to authors                     | ❌ No    | `true`                 |
+| `authorship_for_pr_reviews`  | Add users who reviewed the PR                                    | ❌ No    | `true`                 |
+| `authorship_for_pr_issues`   | Add authors of issues linked to the PR                           | ❌ No    | `true`                 |
+| `authorship_for_pr_issue_comments` | Add users who commented on linked issues                  | ❌ No    | `true`                 |
+| `authorship_for_pr_comment`  | Add users who commented directly on the PR                       | ❌ No    | `true`                 |
+| `bot_blacklist`              | Comma-separated GitHub usernames to exclude from authorship      | ❌ No    | `github-actions[bot]`  |
 
 ---
 

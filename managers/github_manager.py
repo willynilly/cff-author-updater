@@ -31,8 +31,16 @@ class GithubManager:
         ]
 
     def collect_metadata_contributors(
-        self, token: str, repo: str, pr_number: str, flags: dict
+        self,
+        token: str,
+        repo: str,
+        pr_number: str,
+        flags: dict,
+        bot_blacklist: set | None = None,
     ) -> set:
+        if bot_blacklist is None:
+            bot_blacklist = set()
+
         session: requests.Session = self.get_github_session(token=token)
         contributors: set = set()
 
@@ -42,7 +50,7 @@ class GithubManager:
             )
             for review in session.get(reviews_url).json():
                 user = review.get("user", {}).get("login")
-                if user:
+                if user and user not in bot_blacklist:
                     contributors.add(user)
 
         if flags.get("authorship_for_pr_comment"):
@@ -51,7 +59,7 @@ class GithubManager:
             )
             for comment in session.get(comments_url).json():
                 user = comment.get("user", {}).get("login")
-                if user:
+                if user and user not in bot_blacklist:
                     contributors.add(user)
 
         if flags.get("authorship_for_pr_issues") or flags.get(
@@ -67,14 +75,14 @@ class GithubManager:
                     )
                     issue = session.get(issue_url).json()
                     author = issue.get("user", {}).get("login")
-                    if author:
+                    if author and author not in bot_blacklist:
                         contributors.add(author)
 
                 if flags.get("authorship_for_pr_issue_comments"):
                     comments_url = f"https://api.github.com/repos/{repo}/issues/{issue_number}/comments"
                     for comment in session.get(comments_url).json():
                         user = comment.get("user", {}).get("login")
-                        if user:
+                        if user and user not in bot_blacklist:
                             contributors.add(user)
 
         return contributors
@@ -86,7 +94,11 @@ class GithubManager:
         base: str,
         head: str,
         include_coauthors: bool = True,
+        bot_blacklist=None,
     ):
+        if bot_blacklist is None:
+            bot_blacklist = set()
+
         url: str = f"https://api.github.com/repos/{repo}/compare/{base}...{head}"
         headers: dict = {"Authorization": f"token {token}"}
         r: requests.Response = requests.get(url, headers=headers)
@@ -105,10 +117,13 @@ class GithubManager:
             github_author = c.get("author")
 
             if github_author and github_author.get("login"):
-                contributors.add(github_author["login"])
-                contributor_metadata[github_author["login"]] = {"sha": sha}
+                if github_author["login"] not in bot_blacklist:
+                    contributors.add(github_author["login"])
+                    contributor_metadata[github_author["login"]] = {"sha": sha}
             elif commit_author:
                 name = commit_author.get("name")
+                if name in bot_blacklist:
+                    break
                 email = commit_author.get("email")
                 key = (name, email)
                 if name or email:
@@ -122,9 +137,10 @@ class GithubManager:
                     match = coauthor_regex.match(line.strip())
                     if match:
                         name, email = match.groups()
-                        key = (name.strip(), email.strip())
-                        contributors.add(key)
-                        contributor_metadata[key] = {"sha": sha}
+                        if name not in bot_blacklist:
+                            key = (name.strip(), email.strip())
+                            contributors.add(key)
+                            contributor_metadata[key] = {"sha": sha}
 
         return sorted(contributors), contributor_metadata
 
@@ -188,10 +204,10 @@ class GithubManager:
         )
 
         payload = {"body": comment_body}
-        print("posting new PR comment")
-        print("url", comments_url)
-        print("headers", headers)
-        print("payload", payload)
+        # print("posting new PR comment")
+        # print("url", comments_url)
+        # print("headers", headers)
+        # print("payload", payload)
         resp: requests.Response = requests.post(
             comments_url, headers=headers, json=payload
         )

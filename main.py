@@ -7,6 +7,9 @@ from managers.orcid_manager import OrcidManager
 
 
 def main():
+    bot_blacklist = set(
+        os.environ.get("BOT_BLACKLIST", "github-actions[bot]").split(",")
+    )
     repo: str = os.environ["REPO"]
     token: str = os.environ["GITHUB_TOKEN"]
     cff_path: str = os.environ.get("CFF_PATH", "CITATION.cff")
@@ -62,6 +65,7 @@ def main():
             base=base_branch,
             head=head_branch,
             include_coauthors=flags["include_coauthors"],
+            bot_blacklist=bot_blacklist,
         )
         contributors = set(commit_contributors)
 
@@ -74,7 +78,11 @@ def main():
         }
         contributors.update(
             github_manager.collect_metadata_contributors(
-                token, repo, pr_number, metadata_flags
+                token=token,
+                repo=repo,
+                pr_number=pr_number,
+                flags=metadata_flags,
+                bot_blacklist=bot_blacklist,
             )
         )
         cff_manager.process_contributors(
