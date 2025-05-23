@@ -186,28 +186,13 @@ class GithubManager:
         comments_url = (
             f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
         )
-        existing = requests.get(comments_url, headers=headers).json()
-        existing_comment = next(
-            (c for c in existing if marker in c.get("body", "")), None
-        )
 
         payload = {"body": comment_body}
-        if existing_comment:
-            comment_id = existing_comment["id"]
-            print("posting to existing PR comment")
-            print("url", f"{comments_url}/{comment_id}")
-            print("headers", headers)
-            print("payload", payload)
-            resp: requests.Response = requests.patch(
-                f"{comments_url}/{comment_id}", headers=headers, json=payload
-            )
-            resp.raise_for_status()
-        else:
-            print("posting new PR comment")
-            print("url", comments_url)
-            print("headers", headers)
-            print("payload", payload)
-            resp: requests.Response = requests.post(
-                comments_url, headers=headers, json=payload
-            )
-            resp.raise_for_status()
+        print("posting new PR comment")
+        print("url", comments_url)
+        print("headers", headers)
+        print("payload", payload)
+        resp: requests.Response = requests.post(
+            comments_url, headers=headers, json=payload
+        )
+        resp.raise_for_status()
