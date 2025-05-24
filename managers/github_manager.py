@@ -182,6 +182,8 @@ class GithubManager:
         pr_number: str,
         contribution_details: dict,
         repo_for_compare: str,
+        missing_authors: set,
+        missing_author_invalidates_pr: bool,
     ):
 
         marker: str = "<!-- contributor-check-comment -->"
@@ -197,12 +199,18 @@ class GithubManager:
 
         # Add contribution details per new author
         comment_contributions = "\n**New Authors & Contributions:**\n"
-        new_authors = contribution_details.keys()
+        new_authors = contribution_details.keys() - {UNKNOWN_CONTRIBUTOR_KEY}
         if new_authors:
             for new_author in new_authors:
+                if new_author in missing_authors:
+                    missing_author_message = f" (Missing from `{cff_path}`)"
+                else:
+                    missing_author_message = ""
                 if isinstance(new_author, str):
                     # github user
-                    comment_contributions += f"\n#### @{new_author}\n"
+                    comment_contributions += (
+                        f"\n#### @{new_author}{missing_author_message}\n"
+                    )
                 elif (
                     isinstance(tuple, new_author)
                     and len(new_author) == 2
@@ -213,9 +221,13 @@ class GithubManager:
                     new_author_name = new_author[0]
                     new_author_email = new_author[1]
                     if new_author_email:
-                        comment_contributions += f"\n#### {new_author_email}\n"
+                        comment_contributions += (
+                            f"\n#### {new_author_email}{missing_author_message}\n"
+                        )
                     else:
-                        comment_contributions += f"\n#### {new_author_name}\n"
+                        comment_contributions += (
+                            f"\n#### {new_author_name}{missing_author_message}\n"
+                        )
                 else:
                     raise Exception(
                         "Invalid new_author: It must be a Github username or a tuple containing a name and email pair."
@@ -239,14 +251,22 @@ class GithubManager:
 ### CFF Authors Review ###
 
 {comment_contributions}
-
-**Recommended `{cff_path}` file (updated with new authors):**
+"""
+        if missing_authors:
+            comment_body += f"""
+**Recommended `{cff_path}` file (updated with new authors that are missing from the CFF):**
 ```yaml
 {yaml.dump(cff, sort_keys=False)}
 ```
-***Important: This recommended `{cff_path}` file has not been changed yet on this pull request. It needs to be manually copied and committed to the repository.***
 """
-
+            comment_body += f"***Important: This recommended `{cff_path}` file has not been changed yet on this pull request. It can be manually copied and committed to the repository."
+            if missing_author_invalidates_pr:
+                comment_body += f"If the `{cff_path}` file is missing any new author, the pull request will remain invalid."
+            comment_body += f"***"
+        else:
+            comment_body += f"""
+**Current `{cff_path}` file already contains all new authors.**        
+"""
         if warnings:
             comment_body += "\n**Warnings:**\n" + "\n".join(warnings)
 
@@ -263,6 +283,8 @@ class GithubManager:
         comment_body += f"""
 
 _Last updated: {timestamp} UTC · Commit [`{commit_sha_short}`]({commit_url})_
+
+***Powered by [CFF Author Updater](https://github.com/willynilly/cff-author-updater)***
 """
 
         headers = {

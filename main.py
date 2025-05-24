@@ -50,15 +50,17 @@ def main():
         "pr_comments": os.environ.get("AUTHORSHIP_FOR_PR_COMMENT", "true").casefold()
         == "true",
         "post_comment": os.environ.get("POST_COMMENT", "true").casefold() == "true",
-        "new_author_invalidates_pr": os.environ.get(
-            "NEW_AUTHOR_INVALIDATES_PR", "true"
+        "missing_author_invalidates_pr": os.environ.get(
+            "MISSING_AUTHOR_INVALIDATES_PR", "true"
         ).casefold()
         == "true",
     }
 
     orcid_manager = OrcidManager()
     github_manager = GithubManager()
-    cff_manager = CffManager(orcid_manager=orcid_manager, github_manager=github_manager)
+    cff_manager = CffManager(
+        cff_path=cff_path, orcid_manager=orcid_manager, github_manager=github_manager
+    )
 
     contributors: set = set()
     contribution_details: dict = {}
@@ -102,9 +104,8 @@ def main():
             more_contribution_details=more_contribution_details,
         )
 
-        cff_manager.process_contributors(
+        cff_manager.update_cff(
             contributors=contributors,
-            cff_path=cff_path,
             token=token,
             repo=repo,
             pr_number=pr_number,
@@ -118,8 +119,10 @@ def main():
             print(
                 f"The `{cff_path}` file has been updated with {len(contributors)} new authors."
             )
-            if flags["new_author_invalidates_pr"]:
-                print("Pull request is invalidated due to new author.")
+            if flags["missing_author_invalidates_pr"]:
+                print(
+                    f"Pull request is invalidated because a new author is missing from the `{cff_path}` file."
+                )
                 sys.exit(1)
 
 

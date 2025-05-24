@@ -15,7 +15,7 @@ This GitHub Action adds contributors to the `authors:` section of your `CITATION
 - Enriches metadata using GitHub profiles and ORCID lookups
 - Skips duplicate authors using multiple identity checks
 - Posts a pull request comment with the proposed CFF content, which can be manually copied to update the `CITATION.cff`. The comment also contains a detailed breakdown of each new author's qualifying contributions, grouped by category (commits, PR comments, reviews, issues, etc.), with clickable links to each contribution. It also contains warnings and logging information to help provide context for authorship detection and processing.
-- Optionally invalidates pull request when a new author is detected.
+- Optionally invalidates pull request when a new author is missing from the `CITATION.cff`.
 - Outputs updated `CITATION.cff` file and detailed constributions in a JSON file for other workflow steps to use.
 
 ---
@@ -60,7 +60,7 @@ jobs:
           authorship_for_pr_issues: true
           authorship_for_pr_issue_comments: true
           authorship_for_pr_comment: true
-          new_author_invalidates_pr: true
+          missing_author_invalidates_pr: true
           bot_blacklist: github-actions[bot]
 ```
 
@@ -80,7 +80,7 @@ jobs:
 | `authorship_for_pr_issues`   | Include authors of issues linked to the PR as authors                           | ❌ No    | `true`                 |
 | `authorship_for_pr_issue_comments` | Include users who commented on linked issues as authors                 | ❌ No    | `true`                 |
 | `authorship_for_pr_comment`  | Include users who commented directly on the PR as authors                      | ❌ No    | `true`                 |
-| `new_author_invalidates_pr`  | Invalidate the pull request if new author exists                       | ❌ No    | `true`                 |
+| `missing_author_invalidates_pr`  | Invalidate the pull request if a new author is missing from the CFF file                       | ❌ No    | `true`                 |
 | `bot_blacklist`              | Comma-separated GitHub usernames to exclude from authorship      | ❌ No    | `github-actions[bot]`  |
 
 ---

@@ -30,7 +30,7 @@ class OrcidManager:
     ):
         headers: dict = {"Accept": "application/vnd.orcid+json"}
         name_parts: list[str] = full_name.strip().split(" ", 1)
-        given: str = name_parts[0]
+        given: str = name_parts[0] if len(name_parts) > 0 else ""
         family: str = name_parts[1] if len(name_parts) > 1 else ""
         query: str = f"given-names:{given}"
         if family:

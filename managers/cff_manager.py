@@ -1,3 +1,4 @@
+import copy
 import json
 from pathlib import Path
 import requests
@@ -9,9 +10,29 @@ from managers.orcid_manager import OrcidManager
 
 class CffManager:
 
-    def __init__(self, github_manager: GithubManager, orcid_manager: OrcidManager):
+    def __init__(
+        self, cff_path: str, github_manager: GithubManager, orcid_manager: OrcidManager
+    ):
         self.github_manager = github_manager
         self.orcid_manager = orcid_manager
+        self.cff_path = cff_path
+        self.original_cff = self.load_cff(cff_path=cff_path)
+
+    def load_cff(self, cff_path: str):
+        # Check if the CFF file exists
+        path: Path = Path(cff_path)
+        if not path.exists():
+            raise ValueError(f"{cff_path} not found.")
+
+        # make sure the CFF file is valid
+        if not self.validate_cff(cff_path):
+            raise ValueError(f"Validation failed for input CFF file: {cff_path}")
+
+        # create a dictionary from the CFF file
+        with open(path, "r") as f:
+            cff = yaml.safe_load(f)
+
+        return cff
 
     def validate_cff(self, cff_path: str):
         import subprocess
@@ -82,8 +103,6 @@ class CffManager:
             ("issue_comments", "Issue Comment"),
         ]
 
-        print("contribution_details", contribution_details)
-
         contribution_note: str = ""
         if isinstance(contributor, tuple):
             contributor_name = contributor[0]
@@ -131,10 +150,9 @@ class CffManager:
             raise Exception("No contribution found for the contributor.")
         return contribution_note
 
-    def process_contributors(
+    def update_cff(
         self,
         contributors: set,
-        cff_path: str,
         token: str,
         repo: str,
         pr_number: str,
@@ -147,7 +165,6 @@ class CffManager:
         Process contributors and update the CFF file.
         Args:
             contributors (set): Set of contributors.
-            cff_path (str): Path to the CFF file.
             token (str): GitHub token.
             repo (str): Repository name.
             pr_number (str): Pull request number.
@@ -158,9 +175,6 @@ class CffManager:
         """
         if not isinstance(contributors, set):
             raise ValueError("Contributors must be a set.")
-
-        if not cff_path:
-            raise ValueError("CFF path is not provided.")
 
         if not token:
             raise ValueError("GitHub token is not provided.")
@@ -174,23 +188,14 @@ class CffManager:
         if not output_file:
             raise ValueError("Output file path is not provided.")
 
-        # Check if the CFF file exists
-        path: Path = Path(cff_path)
-        if not path.exists():
-            print(f"{cff_path} not found.")
-            return
-
-        if not self.validate_cff(cff_path):
-            print(f"Validation failed for input CFF file: {cff_path}")
-            return
-
-        with open(path, "r") as f:
-            cff = yaml.safe_load(f)
+        cff = copy.deepcopy(self.original_cff)
 
         cff.setdefault("authors", [])
 
         warnings: list = []
         logs: list = []
+
+        already_in_cff_contributors: set = set()
 
         for contributor in contributors:
             entry: dict = {}
@@ -241,6 +246,7 @@ class CffManager:
                             f"- @{contributor}: Only one name part found, treated as entity for deduplication consistency.{contribution_note}"
                         )
                         if any(self.is_same_person(a, entry) for a in cff["authors"]):
+                            already_in_cff_contributors.add(contributor)
                             warnings.append(
                                 f"- {identifier}: Already exists in CFF file."
                             )
@@ -327,17 +333,17 @@ class CffManager:
                 identifier = email or name.casefold()
 
             if any(self.is_same_person(a, entry) for a in cff["authors"]):
+                already_in_cff_contributors.add(contributor)
                 warnings.append(f"- {identifier}: Already exists in CFF file.")
                 continue
 
             cff["authors"].append(entry)
 
-        with open(cff_path, "w") as f:
+        with open(self.cff_path, "w") as f:
             yaml.dump(cff, f, sort_keys=False)
 
-        if not self.validate_cff(cff_path):
-            print(f"Validation failed for output CFF file: {cff_path}")
-            return
+        if not self.validate_cff(self.cff_path):
+            raise Exception(f"Validation failed for output CFF file: {self.cff_path}")
 
         with open(output_file, "a") as f:
             f.write("new_authors<<EOF\n")
@@ -356,8 +362,9 @@ class CffManager:
                 f.write("orcid_logs<<EOF\n" + "\n".join(logs) + "\nEOF\n")
 
         if flags["post_comment"] and pr_number:
+            missing_authors: set = contributors - already_in_cff_contributors
             self.github_manager.post_pull_request_comment(
-                cff_path=cff_path,
+                cff_path=self.cff_path,
                 cff=cff,
                 warnings=warnings,
                 logs=logs,
@@ -366,6 +373,8 @@ class CffManager:
                 pr_number=pr_number,
                 contribution_details=contribution_details,
                 repo_for_compare=repo_for_compare,
+                missing_authors=missing_authors,
+                missing_author_invalidates_pr=flags["missing_author_invalidates_pr"],
             )
 
     def create_json_for_contribution_details(self, contribution_details: dict) -> str:
