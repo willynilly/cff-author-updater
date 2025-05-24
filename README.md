@@ -24,7 +24,7 @@ This GitHub Action adds contributors to the `authors:` section of your `CITATION
 ### Example Workflow
 
 ```yaml
-name: Review CFF Authors with CFF Author Updater
+name: Review CFF Authors on Pull Request
 
 on:
   pull_request_target:
@@ -46,8 +46,8 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
 
-      - name: Run update-cff-authors
-        uses: willynilly/action-update-cff-authors@v1.0.0
+      - name: Run cff-author-updater
+        uses: willynilly/cff-author-updater@v1.0.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           base_branch: main
