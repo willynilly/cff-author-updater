@@ -1,8 +1,8 @@
-# Update CFF Authors from Pull Request Contributions
+# CFF Author Updater
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-This GitHub Action adds contributors to the `authors:` section of your `CITATION.cff` file by analyzing pull requests. It gathers information from commit authors, co-authors, PR reviewers, commenters, and linked issues to build a richer set of contributors. It also enriches contributor metadata using GitHub and ORCID.
+This GitHub Action adds contributors to the `authors:` section of your `CITATION.cff` file by analyzing pull requests and adding new contributors as authors. Contributors include: commit authors, commit co-authors, pull request reviewers, commenters on issues liked to the pull request, and comments on the pull request itself. You can customize which kinds of contributors can become authors. The action also enriches contributor metadata using GitHub and ORCID.
 
 🛑 **Note:** This action does not modify your repository directly. It posts a comment on the pull request suggesting updates to your `CITATION.cff` file, and includes a detailed list of each new author's contributions (with links) that qualified them for authorship.
 
@@ -222,3 +222,8 @@ can rename `developer.env` to `.env`.
 ## 📝 License
 
 Licensed under the [Apache 2.0 License](LICENSE).
+
+## References
+Druskat, S., Spaaks, J. H., Chue Hong, N., Haines, R., Baker, J., Bliven, S.,
+Willighagen, E., Pérez-Suárez, D., & Konovalov, A. (2021). Citation File Format
+(Version 1.2.0) [Computer software]. <https://doi.org/10.5281/zenodo.5171937>
