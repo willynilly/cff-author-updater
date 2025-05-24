@@ -264,9 +264,7 @@ class GithubManager:
                 comment_body += f" If the `{cff_path}` file is missing any new author, the pull request will remain invalid."
             comment_body += f"***"
         else:
-            comment_body += (
-                f"**Current `{cff_path}` file already contains all new authors.**"
-            )
+            comment_body += f"**Current `{cff_path}` file contains all new authors.**"
         if warnings:
             comment_body += "\n\n**Warnings:**\n" + "\n".join(warnings)
 

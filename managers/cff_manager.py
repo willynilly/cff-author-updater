@@ -160,7 +160,7 @@ class CffManager:
         flags: dict,
         repo_for_compare: str,
         contribution_details: dict,
-    ) -> None:
+    ) -> set:
         """
         Process contributors and update the CFF file.
         Args:
@@ -361,8 +361,8 @@ class CffManager:
             if logs:
                 f.write("orcid_logs<<EOF\n" + "\n".join(logs) + "\nEOF\n")
 
+        missing_authors: set = contributors - already_in_cff_contributors
         if flags["post_comment"] and pr_number:
-            missing_authors: set = contributors - already_in_cff_contributors
             self.github_manager.post_pull_request_comment(
                 cff_path=self.cff_path,
                 cff=cff,
@@ -376,6 +376,8 @@ class CffManager:
                 missing_authors=missing_authors,
                 missing_author_invalidates_pr=flags["missing_author_invalidates_pr"],
             )
+
+        return missing_authors
 
     def create_json_for_contribution_details(self, contribution_details: dict) -> str:
         normalized = []

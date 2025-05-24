@@ -104,7 +104,7 @@ def main():
             more_contribution_details=more_contribution_details,
         )
 
-        cff_manager.update_cff(
+        missing_authors = cff_manager.update_cff(
             contributors=contributors,
             token=token,
             repo=repo,
@@ -119,7 +119,7 @@ def main():
             print(
                 f"The `{cff_path}` file has been updated with {len(contributors)} new authors."
             )
-            if flags["missing_author_invalidates_pr"]:
+            if flags["missing_author_invalidates_pr"] and len(missing_authors):
                 print(
                     f"Pull request is invalidated because a new author is missing from the `{cff_path}` file."
                 )
