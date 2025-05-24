@@ -248,7 +248,7 @@ class GithubManager:
 
         comment_body = f"""
 {marker}
-### CFF Authors Review ###
+### CFF Author Updater ###
 
 {comment_contributions}
 """
