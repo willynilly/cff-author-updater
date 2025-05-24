@@ -29,10 +29,10 @@ jobs:
           head_branch: ${{ github.head_ref }}
           cff_path: CITATION.cff
           post_comment: true
-          include_coauthors: true
           authorship_for_pr_commits: true
           authorship_for_pr_reviews: true
           authorship_for_pr_issues: true
           authorship_for_pr_issue_comments: true
           authorship_for_pr_comment: true
+          new_author_invalidates_pr: true
           bot_blacklist: github-actions[bot]

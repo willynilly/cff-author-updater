@@ -11,11 +11,12 @@ This GitHub Action adds contributors to the `authors:` section of your `CITATION
 ## 🔧 Features
 
 - Updates `authors:` in `CITATION.cff` with contributors from PRs
-- Parses commit authors, co-authors, PR reviewers, and commenters
-- Detects users who opened or commented on linked issues, including pull requests
+- Customizable inclusive authorship. Allows a variety of contributors to become authors, including commit authors, commit co-authors, PR reviewers, linked issue authors, and linked issue commenters.
 - Enriches metadata using GitHub profiles and ORCID lookups
 - Skips duplicate authors using multiple identity checks
-- Posts a pull request comment with the proposed CFF content, which can be manually copied to update the `CITATION.cff`. The comment also contains a detailed breakdown of each new author's qualifying contributions, grouped by category (commits, PR comments, reviews, issues, etc.), with clickable links to each contribution.
+- Posts a pull request comment with the proposed CFF content, which can be manually copied to update the `CITATION.cff`. The comment also contains a detailed breakdown of each new author's qualifying contributions, grouped by category (commits, PR comments, reviews, issues, etc.), with clickable links to each contribution. It also contains warnings and logging information to help provide context for authorship detection and processing.
+- Optionally invalidates pull request when a new author is detected.
+- Outputs updated `CITATION.cff` file and detailed constributions in a JSON file for other workflow steps to use.
 
 ---
 
@@ -54,12 +55,12 @@ jobs:
           head_branch: ${{ github.head_ref }}
           cff_path: CITATION.cff
           post_comment: true
-          include_coauthors: true
           authorship_for_pr_commits: true
           authorship_for_pr_reviews: true
           authorship_for_pr_issues: true
           authorship_for_pr_issue_comments: true
           authorship_for_pr_comment: true
+          new_author_invalidates_pr: true
           bot_blacklist: github-actions[bot]
 ```
 
@@ -73,13 +74,13 @@ jobs:
 | `base_branch`                 | Base branch of the PR                                            | ✅ Yes   | —                      |
 | `head_branch`                 | Source branch of the PR                                          | ✅ Yes   | —                      |
 | `cff_path`                    | Path to your `CITATION.cff` file                                 | ❌ No    | `CITATION.cff`         |
-| `post_comment`                | Whether to comment the updated CFF file on the PR                | ❌ No    | `true`                 |
-| `include_coauthors`          | Include co-authors from commit messages                          | ❌ No    | `true`                 |
-| `authorship_for_pr_commits`  | Add commit authors and co-authors to authors                     | ❌ No    | `true`                 |
-| `authorship_for_pr_reviews`  | Add users who reviewed the PR                                    | ❌ No    | `true`                 |
-| `authorship_for_pr_issues`   | Add authors of issues linked to the PR                           | ❌ No    | `true`                 |
-| `authorship_for_pr_issue_comments` | Add users who commented on linked issues                  | ❌ No    | `true`                 |
-| `authorship_for_pr_comment`  | Add users who commented directly on the PR                       | ❌ No    | `true`                 |
+| `post_comment`                | Whether to comment the updated CFF file on the PR                | ❌ No    | `true`                 |                 |
+| `authorship_for_pr_commits`  | Include commit authors and co-authors as authors                     | ❌ No    | `true`                 |
+| `authorship_for_pr_reviews`  | Include users who reviewed the PR as authors                                   | ❌ No    | `true`                 |
+| `authorship_for_pr_issues`   | Include authors of issues linked to the PR as authors                           | ❌ No    | `true`                 |
+| `authorship_for_pr_issue_comments` | Include users who commented on linked issues as authors                 | ❌ No    | `true`                 |
+| `authorship_for_pr_comment`  | Include users who commented directly on the PR as authors                      | ❌ No    | `true`                 |
+| `new_author_invalidates_pr`  | Invalidate the pull request if new author exists                       | ❌ No    | `true`                 |
 | `bot_blacklist`              | Comma-separated GitHub usernames to exclude from authorship      | ❌ No    | `github-actions[bot]`  |
 
 ---

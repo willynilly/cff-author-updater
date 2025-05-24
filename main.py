@@ -1,5 +1,6 @@
 import os
 import json
+import sys
 
 from managers.cff_manager import CffManager
 from managers.github_manager import GithubManager
@@ -48,9 +49,11 @@ def main():
         == "true",
         "pr_comments": os.environ.get("AUTHORSHIP_FOR_PR_COMMENT", "true").casefold()
         == "true",
-        "include_coauthors": os.environ.get("INCLUDE_COAUTHORS", "true").casefold()
-        == "true",
         "post_comment": os.environ.get("POST_COMMENT", "true").casefold() == "true",
+        "new_author_invalidates_pr": os.environ.get(
+            "NEW_AUTHOR_INVALIDATES_PR", "true"
+        ).casefold()
+        == "true",
     }
 
     orcid_manager = OrcidManager()
@@ -66,7 +69,6 @@ def main():
                 repo=repo_for_compare,
                 base=base_branch,
                 head=head_branch,
-                include_coauthors=flags["include_coauthors"],
                 bot_blacklist=bot_blacklist,
             )
         )
@@ -111,6 +113,14 @@ def main():
             repo_for_compare=repo_for_compare,
             contribution_details=contribution_details,
         )
+
+        if len(contributors):
+            print(
+                f"The `{cff_path}` file has been updated with {len(contributors)} new authors."
+            )
+            if flags["new_author_invalidates_pr"]:
+                print("Pull request is invalidated due to new author.")
+                sys.exit(1)
 
 
 if __name__ == "__main__":

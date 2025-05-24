@@ -112,7 +112,6 @@ class GithubManager:
         repo: str,
         base: str,
         head: str,
-        include_coauthors: bool = True,
         bot_blacklist=None,
     ):
         if bot_blacklist is None:
@@ -158,17 +157,17 @@ class GithubManager:
                         UNKNOWN_CONTRIBUTOR_KEY, {}
                     ).setdefault("commits", []).append(sha)
 
-            if include_coauthors:
-                for line in c.get("commit", {}).get("message", "").splitlines():
-                    match = coauthor_regex.match(line.strip())
-                    if match:
-                        name, email = match.groups()
-                        if name not in bot_blacklist:
-                            key = (name.strip(), email.strip())
-                            contributors.add(key)
-                            contribution_details.setdefault(key, {}).setdefault(
-                                "commits", []
-                            ).append(sha)
+            # add coauthors
+            for line in c.get("commit", {}).get("message", "").splitlines():
+                match = coauthor_regex.match(line.strip())
+                if match:
+                    name, email = match.groups()
+                    if name not in bot_blacklist:
+                        key = (name.strip(), email.strip())
+                        contributors.add(key)
+                        contribution_details.setdefault(key, {}).setdefault(
+                            "commits", []
+                        ).append(sha)
 
         return sorted(contributors), contribution_details
 
