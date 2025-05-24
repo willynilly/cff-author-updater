@@ -24,7 +24,7 @@ This GitHub Action adds contributors to the `authors:` section of your `CITATION
 ### Example Workflow
 
 ```yaml
-name: Contributor Check on PR
+name: Review CFF Authors with CFF Author Updater
 
 on:
   pull_request_target:
