@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 import requests
 import yaml
@@ -188,19 +189,13 @@ class CffManager:
 
         cff.setdefault("authors", [])
 
-        new_users: list = []
         warnings: list = []
         logs: list = []
 
         for contributor in contributors:
             entry: dict = {}
             identifier: str = ""
-            # sha: str = contribution_details.get(contributor, {}).get("sha", "")
-            # sha_note: str = (
-            #     f" (Commit: [`{sha[:7]}`](https://github.com/{repo_for_compare}/commit/{sha}))"
-            #     if sha
-            #     else ""
-            # )
+
             contribution_note = self.get_contribution_note_for_warning(
                 contributor=contributor,
                 contribution_details=contribution_details,
@@ -251,7 +246,6 @@ class CffManager:
                             )
                             continue
                         cff["authors"].append(entry)
-                        new_users.append(identifier)
                         continue
 
                     if user.get("email"):
@@ -337,7 +331,6 @@ class CffManager:
                 continue
 
             cff["authors"].append(entry)
-            new_users.append(identifier)
 
         with open(cff_path, "w") as f:
             yaml.dump(cff, f, sort_keys=False)
@@ -347,7 +340,13 @@ class CffManager:
             return
 
         with open(output_file, "a") as f:
-            f.write(f"new_users={','.join(new_users)}\n")
+            f.write("new_authors<<EOF\n")
+            f.write(
+                self.create_json_for_contribution_details(
+                    contribution_details=contribution_details
+                )
+            )
+            f.write("\nEOF\n")
             f.write("updated_cff<<EOF\n")
             f.write(yaml.dump(cff, sort_keys=False))
             f.write("\nEOF\n")
@@ -358,7 +357,6 @@ class CffManager:
 
         if flags["post_comment"] and pr_number:
             self.github_manager.post_pull_request_comment(
-                new_users=new_users,
                 cff_path=cff_path,
                 cff=cff,
                 warnings=warnings,
@@ -369,3 +367,13 @@ class CffManager:
                 contribution_details=contribution_details,
                 repo_for_compare=repo_for_compare,
             )
+
+    def create_json_for_contribution_details(self, contribution_details: dict) -> str:
+        normalized = []
+        for contributor, contributions in contribution_details.items():
+            normalized_contributor = {
+                "contributor": contributor,
+                "contributions": contributions,
+            }
+            normalized.append(normalized_contributor)
+        return json.dumps(normalized)

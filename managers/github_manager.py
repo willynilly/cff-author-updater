@@ -3,6 +3,8 @@ import re
 import requests
 import yaml
 
+UNKNOWN_CONTRIBUTOR_KEY = ("unknown", None)
+
 
 class GithubManager:
 
@@ -145,16 +147,16 @@ class GithubManager:
                 if name in bot_blacklist:
                     break
                 email = commit_author.get("email")
-                key = (name, email)
+                key = (name.strip(), email.strip())
                 if name or email:
                     contributors.add(key)
                     contribution_details.setdefault(key, {}).setdefault(
                         "commits", []
                     ).append(sha)
                 else:
-                    contribution_details.setdefault(("unknown", None), {}).setdefault(
-                        "commits", []
-                    ).append(sha)
+                    contribution_details.setdefault(
+                        UNKNOWN_CONTRIBUTOR_KEY, {}
+                    ).setdefault("commits", []).append(sha)
 
             if include_coauthors:
                 for line in c.get("commit", {}).get("message", "").splitlines():
@@ -172,7 +174,6 @@ class GithubManager:
 
     def post_pull_request_comment(
         self,
-        new_users: list,
         cff_path: str,
         cff: dict,
         warnings: list,
@@ -194,32 +195,57 @@ class GithubManager:
         commit_sha = os.environ.get("GITHUB_SHA", "")
         commit_sha_short = commit_sha[:7]
         commit_url = f"https://github.com/{repo}/commit/{commit_sha}"
+
+        # Add contribution details per new author
+        comment_contributions = "\n**New Authors & Contributions:**\n"
+        new_authors = contribution_details.keys()
+        if new_authors:
+            for new_author in new_authors:
+                if isinstance(new_author, str):
+                    # github user
+                    comment_contributions += f"\n#### @{new_author}\n"
+                elif (
+                    isinstance(tuple, new_author)
+                    and len(new_author) == 2
+                    and isinstance(new_author[0], str)
+                    and isinstance(new_author[1], str)
+                ):
+                    # non github committer
+                    new_author_name = new_author[0]
+                    new_author_email = new_author[1]
+                    if new_author_email:
+                        comment_contributions += f"\n#### {new_author_email}\n"
+                    else:
+                        comment_contributions += f"\n#### {new_author_name}\n"
+                else:
+                    raise Exception(
+                        "Invalid new_author: It must be a Github username or a tuple containing a name and email pair."
+                    )
+
+                details = contribution_details.get(new_author, {})
+                for category, items in details.items():
+                    comment_contributions += (
+                        f"- **{category.replace('_', ' ').title()}**\n"
+                    )
+                    for item in items:
+                        if category == "commits":
+                            comment_contributions += f"  - [`{item[:7]}`](https://github.com/{repo_for_compare}/commit/{item})\n"
+                        else:
+                            comment_contributions += f"  - [Link]({item})\n"
+        else:
+            comment_contributions += "\n**No new authors.**\n"
+
         comment_body = f"""
 {marker}
 ### CFF Authors Review ###
 
-* New Authors From Pull Request: *
-{chr(10).join(f"- {u}" for u in new_users) if new_users else "_None_"}
+{comment_contributions}
 
 **Updated `{cff_path}` file:**
 ```yaml
 {yaml.dump(cff, sort_keys=False)}
 ```
 """
-
-        # Add contribution details per new author
-        if new_users:
-            comment_body += "\n**New Author Contributions:**\n"
-            for user in new_users:
-                comment_body += f"\n#### @{user}\n"
-                details = contribution_details.get(user, {})
-                for category, items in details.items():
-                    comment_body += f"- **{category.replace('_', ' ').title()}**\n"
-                    for item in items:
-                        if category == "commits":
-                            comment_body += f"  - [`{item[:7]}`](https://github.com/{repo_for_compare}/commit/{item})\n"
-                        else:
-                            comment_body += f"  - [Link]({item})\n"
 
         if warnings:
             comment_body += "\n**Warnings & Recommendations:**\n" + "\n".join(warnings)

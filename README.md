@@ -88,7 +88,7 @@ jobs:
 
 | Name           | Description                                      |
 |----------------|--------------------------------------------------|
-| `new_users`    | Comma-separated list of added author identifiers |
+| `new_authors`  | New authors and qualifying contributions in JSON |
 | `updated_cff`  | Full content of the updated CFF file             |
 | `warnings`     | Skipped or incomplete author entries             |
 | `orcid_logs`   | Logs of ORCID match attempts                     |
