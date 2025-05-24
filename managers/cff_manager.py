@@ -58,6 +58,76 @@ class CffManager:
         else:
             return "unknown"
 
+    def get_contribution_note_for_warning(
+        self,
+        contributor: str | tuple[str, str],
+        contribution_details: dict,
+        repo_for_compare: str,
+    ) -> str:
+        """
+        Get contribution note for warning.
+        Args:
+            contributor (str): Contributor name.
+            contribution_details (dict): Contribution details.
+            repo_for_compare (str): Repository for comparison
+        Returns:
+            str: Contribution note.
+        """
+        contribution_categories = [
+            ("commits", "Commit"),
+            ("pr_comments", "Pull Request Comment"),
+            ("reviews", "Review"),
+            ("issues", "Issue"),
+            ("issue_comments", "Issue Comment"),
+        ]
+
+        contribution_note: str = ""
+        if isinstance(contributor, tuple):
+            contributor_name = contributor[0]
+            contributor_email = contributor[1]
+            if contributor_email and contributor_name:
+                contribution_note = f"- `{contributor_name} <{contributor_email}>`: "
+            elif contributor_name:
+                contribution_note = f"- `{contributor_name}`: "
+            elif contributor_email:
+                contribution_note = f"- `{contributor_email}`: "
+            else:
+                raise ValueError(
+                    "Contributor tuple must contain at least one non-empty string."
+                )
+        else:
+            contributor_name = contributor
+            if not contributor_name:
+                raise ValueError("Contributor name must be a non-empty string.")
+            contribution_note = f"- @{contributor_name}: "
+
+        # Find the first contribution category that exists in the contribution details
+        # and is not empty
+
+        first_contribution_category: tuple[str, str] | None = None
+        for contribution_category in contribution_categories:
+            if (
+                contribution_category in contribution_details.get(contributor, {})
+                and len(contribution_details[contributor][contribution_category]) > 0
+            ):
+                first_contribution_category = contribution_category
+                break
+        if first_contribution_category:
+            first_contribution = contribution_details[contributor][
+                first_contribution_category
+            ][0]
+            if first_contribution_category[0] == "commits":
+                sha = first_contribution
+                sha_url = f"https://github.com/{repo_for_compare}/commit/{sha}"
+                contribution_note += f"Commit: [`{first_contribution[:7]}`]({sha_url})"
+            else:
+                contribution_note += (
+                    f"[{first_contribution_category[1]}]({first_contribution})"
+                )
+        else:
+            raise Exception("No contribution found for the contributor.")
+        return contribution_note
+
     def process_contributors(
         self,
         contributors: set,
@@ -67,9 +137,41 @@ class CffManager:
         pr_number: str,
         output_file: str,
         flags: dict,
-        contributor_metadata: dict,
         repo_for_compare: str,
-    ):
+        contribution_details: dict,
+    ) -> None:
+        """
+        Process contributors and update the CFF file.
+        Args:
+            contributors (set): Set of contributors.
+            cff_path (str): Path to the CFF file.
+            token (str): GitHub token.
+            repo (str): Repository name.
+            pr_number (str): Pull request number.
+            output_file (str): Output file path.
+            flags (dict): Flags for processing.
+            repo_for_compare (str): Repository for comparison.
+            contribution_details (dict): Contribution details.
+        """
+        if not isinstance(contributors, set):
+            raise ValueError("Contributors must be a set.")
+
+        if not cff_path:
+            raise ValueError("CFF path is not provided.")
+
+        if not token:
+            raise ValueError("GitHub token is not provided.")
+
+        if not repo:
+            raise ValueError("Repository is not provided.")
+
+        if not pr_number:
+            raise ValueError("Pull request number is not provided.")
+
+        if not output_file:
+            raise ValueError("Output file path is not provided.")
+
+        # Check if the CFF file exists
         path: Path = Path(cff_path)
         if not path.exists():
             print(f"{cff_path} not found.")
@@ -91,11 +193,16 @@ class CffManager:
         for contributor in contributors:
             entry: dict = {}
             identifier: str = ""
-            sha: str = contributor_metadata.get(contributor, {}).get("sha", "")
-            sha_note: str = (
-                f" (Commit: [`{sha[:7]}`](https://github.com/{repo_for_compare}/commit/{sha}))"
-                if sha
-                else ""
+            # sha: str = contribution_details.get(contributor, {}).get("sha", "")
+            # sha_note: str = (
+            #     f" (Commit: [`{sha[:7]}`](https://github.com/{repo_for_compare}/commit/{sha}))"
+            #     if sha
+            #     else ""
+            # )
+            contribution_note = self.get_contribution_note_for_warning(
+                contributor=contributor,
+                contribution_details=contribution_details,
+                repo_for_compare=repo_for_compare,
             )
 
             if isinstance(contributor, str):
@@ -109,7 +216,7 @@ class CffManager:
                 # skip the user if the user is not found
                 if resp.status_code != 200:
                     warnings.append(
-                        f"- @{contributor}: Unable to fetch user data from GitHub API. Status code: {resp.status_code}{sha_note}"
+                        f"- @{contributor}: Unable to fetch user data from GitHub API. Status code: {resp.status_code}{contribution_note}"
                     )
                     continue
 
@@ -134,7 +241,7 @@ class CffManager:
                         entry["name"] = full_name
                         entry["alias"] = contributor
                         warnings.append(
-                            f"- @{contributor}: Only one name part found, treated as entity for deduplication consistency.{sha_note}"
+                            f"- @{contributor}: Only one name part found, treated as entity for deduplication consistency.{contribution_note}"
                         )
                         if any(self.is_same_person(a, entry) for a in cff["authors"]):
                             warnings.append(
@@ -192,7 +299,7 @@ class CffManager:
                 if entry_type == "entity" and not matched:
                     if not name.strip():
                         warnings.append(
-                            f"- Commit author with email `{email}` has no name and was skipped.{sha_note}"
+                            f"- Commit author with email `{email}` has no name and was skipped.{contribution_note}"
                         )
                         continue
                     entry["name"] = name
@@ -218,7 +325,7 @@ class CffManager:
                         if email:
                             entry["email"] = email
                         warnings.append(
-                            f"- `{full_name}`: Only one name part found, treated as entity for deduplication consistency.{sha_note}"
+                            f"- `{full_name}`: Only one name part found, treated as entity for deduplication consistency.{contribution_note}"
                         )
 
                 identifier = email or name.casefold()
@@ -257,4 +364,6 @@ class CffManager:
                 token=token,
                 repo=repo,
                 pr_number=pr_number,
+                contribution_details=contribution_details,
+                repo_for_compare=repo_for_compare,
             )

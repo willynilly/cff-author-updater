@@ -37,12 +37,13 @@ class GithubManager:
         pr_number: str,
         flags: dict,
         bot_blacklist: set | None = None,
-    ) -> set:
+    ) -> tuple[set, dict]:
         if bot_blacklist is None:
             bot_blacklist = set()
 
         session: requests.Session = self.get_github_session(token=token)
         contributors: set = set()
+        contribution_details: dict = {}
 
         if flags.get("authorship_for_pr_reviews"):
             reviews_url = (
@@ -50,8 +51,12 @@ class GithubManager:
             )
             for review in session.get(reviews_url).json():
                 user = review.get("user", {}).get("login")
+                url = review.get("html_url")
                 if user and user not in bot_blacklist:
                     contributors.add(user)
+                    contribution_details.setdefault(user, {}).setdefault(
+                        "reviews", []
+                    ).append(url)
 
         if flags.get("authorship_for_pr_comment"):
             comments_url: str = (
@@ -59,8 +64,12 @@ class GithubManager:
             )
             for comment in session.get(comments_url).json():
                 user = comment.get("user", {}).get("login")
+                url = comment.get("html_url")
                 if user and user not in bot_blacklist:
                     contributors.add(user)
+                    contribution_details.setdefault(user, {}).setdefault(
+                        "pr_comments", []
+                    ).append(url)
 
         if flags.get("authorship_for_pr_issues") or flags.get(
             "authorship_for_pr_issue_comments"
@@ -74,18 +83,26 @@ class GithubManager:
                         f"https://api.github.com/repos/{repo}/issues/{issue_number}"
                     )
                     issue = session.get(issue_url).json()
-                    author = issue.get("user", {}).get("login")
-                    if author and author not in bot_blacklist:
-                        contributors.add(author)
+                    user = issue.get("user", {}).get("login")
+                    url = issue.get("html_url")
+                    if user and user not in bot_blacklist:
+                        contributors.add(user)
+                        contribution_details.setdefault(user, {}).setdefault(
+                            "issues", []
+                        ).append(url)
 
                 if flags.get("authorship_for_pr_issue_comments"):
                     comments_url = f"https://api.github.com/repos/{repo}/issues/{issue_number}/comments"
                     for comment in session.get(comments_url).json():
                         user = comment.get("user", {}).get("login")
+                        url = comment.get("html_url")
                         if user and user not in bot_blacklist:
                             contributors.add(user)
+                            contribution_details.setdefault(user, {}).setdefault(
+                                "issue_comments", []
+                            ).append(url)
 
-        return contributors
+        return contributors, contribution_details
 
     def collect_commit_contributors(
         self,
@@ -106,7 +123,7 @@ class GithubManager:
         data = r.json()
         commits: list = data.get("commits", [])
         contributors = set()
-        contributor_metadata: dict = {}
+        contribution_details: dict = {}
         coauthor_regex = re.compile(
             r"^Co-authored-by:\s*(.+?)\s*<(.+?)>$", re.IGNORECASE
         )
@@ -117,9 +134,12 @@ class GithubManager:
             github_author = c.get("author")
 
             if github_author and github_author.get("login"):
-                if github_author["login"] not in bot_blacklist:
-                    contributors.add(github_author["login"])
-                    contributor_metadata[github_author["login"]] = {"sha": sha}
+                user = github_author["login"]
+                if user not in bot_blacklist:
+                    contributors.add(user)
+                    contribution_details.setdefault(user, {}).setdefault(
+                        "commits", []
+                    ).append(sha)
             elif commit_author:
                 name = commit_author.get("name")
                 if name in bot_blacklist:
@@ -128,9 +148,13 @@ class GithubManager:
                 key = (name, email)
                 if name or email:
                     contributors.add(key)
-                    contributor_metadata[key] = {"sha": sha}
+                    contribution_details.setdefault(key, {}).setdefault(
+                        "commits", []
+                    ).append(sha)
                 else:
-                    contributor_metadata[("unknown", None)] = {"sha": sha}
+                    contribution_details.setdefault(("unknown", None), {}).setdefault(
+                        "commits", []
+                    ).append(sha)
 
             if include_coauthors:
                 for line in c.get("commit", {}).get("message", "").splitlines():
@@ -140,9 +164,11 @@ class GithubManager:
                         if name not in bot_blacklist:
                             key = (name.strip(), email.strip())
                             contributors.add(key)
-                            contributor_metadata[key] = {"sha": sha}
+                            contribution_details.setdefault(key, {}).setdefault(
+                                "commits", []
+                            ).append(sha)
 
-        return sorted(contributors), contributor_metadata
+        return sorted(contributors), contribution_details
 
     def post_pull_request_comment(
         self,
@@ -154,6 +180,8 @@ class GithubManager:
         token: str,
         repo: str,
         pr_number: str,
+        contribution_details: dict,
+        repo_for_compare: str,
     ):
 
         marker: str = "<!-- contributor-check-comment -->"
@@ -179,18 +207,32 @@ class GithubManager:
 ```
 """
 
+        # Add contribution details per new author
+        if new_users:
+            comment_body += "\n**New Author Contributions:**\n"
+            for user in new_users:
+                comment_body += f"\n#### @{user}\n"
+                details = contribution_details.get(user, {})
+                for category, items in details.items():
+                    comment_body += f"- **{category.replace('_', ' ').title()}**\n"
+                    for item in items:
+                        if category == "commits":
+                            comment_body += f"  - [`{item[:7]}`](https://github.com/{repo_for_compare}/commit/{item})\n"
+                        else:
+                            comment_body += f"  - [Link]({item})\n"
+
         if warnings:
             comment_body += "\n**Warnings & Recommendations:**\n" + "\n".join(warnings)
 
         if logs:
             comment_body += f"""
 
-    <details>
-    <summary><strong>ORCID Match Details</strong></summary>
+<details>
+<summary><strong>ORCID Match Details</strong></summary>
 
-    {chr(10).join(logs)}
+{chr(10).join(logs)}
 
-    </details>"""
+</details>"""
 
         comment_body += f"""
 
@@ -206,10 +248,6 @@ _Last updated: {timestamp} UTC · Commit [`{commit_sha_short}`]({commit_url})_
         )
 
         payload = {"body": comment_body}
-        # print("posting new PR comment")
-        # print("url", comments_url)
-        # print("headers", headers)
-        # print("payload", payload)
         resp: requests.Response = requests.post(
             comments_url, headers=headers, json=payload
         )

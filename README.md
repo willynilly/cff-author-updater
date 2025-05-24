@@ -4,7 +4,7 @@
 
 This GitHub Action adds contributors to the `authors:` section of your `CITATION.cff` file by analyzing pull requests. It gathers information from commit authors, co-authors, PR reviewers, commenters, and linked issues to build a richer set of contributors. It also enriches contributor metadata using GitHub and ORCID.
 
-🛑 **Note:** This action does not modify your repository directly. It posts a comment on the pull request suggesting updates to your `CITATION.cff` file.
+🛑 **Note:** This action does not modify your repository directly. It posts a comment on the pull request suggesting updates to your `CITATION.cff` file, and includes a detailed list of each new author's contributions (with links) that qualified them for authorship.
 
 ---
 
@@ -15,7 +15,7 @@ This GitHub Action adds contributors to the `authors:` section of your `CITATION
 - Detects users who opened or commented on linked issues, including pull requests
 - Enriches metadata using GitHub profiles and ORCID lookups
 - Skips duplicate authors using multiple identity checks
-- Posts a pull request comment with the proposed CFF content, which can be manually copied to update the `CITATION.cff`
+- Posts a pull request comment with the proposed CFF content, which can be manually copied to update the `CITATION.cff`. The comment also contains a detailed breakdown of each new author's qualifying contributions, grouped by category (commits, PR comments, reviews, issues, etc.), with clickable links to each contribution.
 
 ---
 
@@ -213,6 +213,11 @@ This table describes how contributor metadata from GitHub or commits is mapped t
 
 > ❌ If a contributor has no name and no GitHub username, they are skipped and a warning is posted (including the commit SHA for traceability).
 
+## 🛠 Developer Notes
+
+To run pytest tests, you must create a `.env` in the project folder
+that contains `developer.env`. If you don't have a `.env`, you
+can rename `developer.env` to `.env`.
 
 ## 📝 License
 
