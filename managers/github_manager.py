@@ -254,7 +254,7 @@ class GithubManager:
 """
         if missing_authors:
             comment_body += f"""
-**Recommended `{cff_path}` file (updated with new authors that are missing from the CFF):**
+**Recommended `{cff_path}` file (updated with missing authors):**
 ```yaml
 {yaml.dump(cff, sort_keys=False)}
 ```
