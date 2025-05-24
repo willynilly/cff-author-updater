@@ -261,14 +261,14 @@ class GithubManager:
 """
             comment_body += f"***Important: This recommended `{cff_path}` file has not been changed yet on this pull request. It can be manually copied and committed to the repository."
             if missing_author_invalidates_pr:
-                comment_body += f"If the `{cff_path}` file is missing any new author, the pull request will remain invalid."
+                comment_body += f" If the `{cff_path}` file is missing any new author, the pull request will remain invalid."
             comment_body += f"***"
         else:
-            comment_body += f"""
-**Current `{cff_path}` file already contains all new authors.**        
-"""
+            comment_body += (
+                f"**Current `{cff_path}` file already contains all new authors.**"
+            )
         if warnings:
-            comment_body += "\n**Warnings:**\n" + "\n".join(warnings)
+            comment_body += "\n\n**Warnings:**\n" + "\n".join(warnings)
 
         if logs:
             comment_body += f"""
