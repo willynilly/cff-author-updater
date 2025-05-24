@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-This GitHub Action adds contributors to the `authors:` section of your `CITATION.cff` file by analyzing pull requests and adding new contributors as authors. Contributors include: commit authors, commit co-authors, pull request reviewers, commenters on issues liked to the pull request, and comments on the pull request itself. You can customize which kinds of contributors can become authors. The action also enriches contributor metadata using GitHub and ORCID.
+This GitHub Action adds contributors to the `authors:` section of your `CITATION.cff` file by analyzing pull requests and adding new contributors as authors. Contributors include: commit authors, commit co-authors, pull request reviewers, commenters on issues linked to the pull request, and comments on the pull request itself. You can customize which kinds of contributors can become authors. The action also enriches contributor metadata using GitHub and ORCID.
 
 🛑 **Note:** This action does not modify your repository directly. It posts a comment on the pull request that include a block with your `CITATION.cff` file updated with new authors from that pull request. This comment also includes a detailed list of each new author's contributions (with links) that qualified them for authorship.
 
