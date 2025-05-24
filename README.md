@@ -129,7 +129,7 @@ When a contributor is associated with a GitHub account:
   - Mapped to CFF `entity`
   - Fields used: `name`, `alias`, `email` (if provided by GitHub)
 
-> ORCID enrichment is only applied to individuals (`type: person`).
+> ORCID enrichment is only applied to individuals (`type: person`). The Github user profile URL is used for the `alias`
 
 ---
 
@@ -177,7 +177,7 @@ Before adding a contributor, the following identifiers are checked against exist
 
 1. ORCID
 2. Email address
-3. GitHub alias (if available)
+3. GitHub user profile URL as `alias` (if available)
 4. Full name (`given-names` + `family-names`)
 5. Entity name
 
@@ -197,11 +197,11 @@ This table describes how contributor metadata from GitHub or commits is mapped t
 
 | Source                         | Metadata Field         | CFF Field              | Notes                                                                 |
 |-------------------------------|------------------------|------------------------|-----------------------------------------------------------------------|
-| GitHub user (individual)      | GitHub username        | `alias`                | Added as `alias` for traceability                                     |
+| GitHub user (individual)      | GitHub username profile URL       | `alias`                | Added as `alias` for traceability                                     |
 | GitHub user (individual)      | Profile name (e.g. "Jane Doe") | `given-names`, `family-names` | Split into first and last; if only one part, treated as `entity`     |
 | GitHub user (individual)      | Email (if public)      | `email`                | Optional; used if present                                             |
 | GitHub user (individual)      | ORCID in bio or matched | `orcid`                | Enriched via ORCID public API                                         |
-| GitHub user (organization)    | GitHub username        | `alias`                | Added as `alias`                                                      |
+| GitHub user (organization)    | GitHub username profile URL       | `alias`                | Added as `alias`                                                      |
 | GitHub user (organization)    | Org display name       | `name`                 | Mapped to `entity` name                                               |
 | GitHub user (organization)    | Email (if public)      | `email`                | Optional                                                              |
 | Non-GitHub commit author      | Name (e.g. "Jane Doe") | `given-names`, `family-names` or `name` | If two parts → person; one part → `entity`                            |

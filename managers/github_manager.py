@@ -259,7 +259,7 @@ class GithubManager:
 {yaml.dump(cff, sort_keys=False)}
 ```
 """
-            comment_body += f"***Important: This recommended `{cff_path}` file has not been changed yet on this pull request. It can be manually copied and committed to the repository."
+            comment_body += f"***Important: This recommended `{cff_path}` file has not been changed yet on this pull request. It can be manually copied and committed to the repository. For Github users to be recognized, you must use their Github user profile URL as their `alias` in the {cff_path} file."
             if missing_author_invalidates_pr:
                 comment_body += f" If the `{cff_path}` file is missing any new author, the pull request will remain invalid."
             comment_body += f"***"

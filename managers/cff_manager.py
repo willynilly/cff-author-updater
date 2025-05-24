@@ -58,17 +58,36 @@ class CffManager:
 
         if a_type == "entity":
             return (
-                a.get("name", "").strip().casefold()
-                == b.get("name", "").strip().casefold()
+                a.get("name", "").casefold().strip()
+                == b.get("name", "").casefold().strip()
+                and a.get("name", "").strip() != ""
+            ) or (
+                a.get("alias", "").casefold().strip()
+                == b.get("alias", "").casefold().strip()
+                and a.get("alias", "").strip() != ""
             )
 
         return (
-            a.get("alias", "").casefold() == b.get("alias", "").casefold()
-            or a.get("email", "").casefold() == b.get("email", "").casefold()
-            or a.get("orcid", "").casefold() == b.get("orcid", "").casefold()
+            (
+                a.get("alias", "").casefold().strip()
+                == b.get("alias", "").casefold().strip()
+                and a.get("alias", "").strip() != ""
+            )
             or (
-                f"{a.get('given-names', '').strip().casefold()} {a.get('family-names', '').strip().casefold()}".strip()
-                == f"{b.get('given-names', '').strip().casefold()} {b.get('family-names', '').strip().casefold()}".strip()
+                a.get("email", "").casefold().strip()
+                == b.get("email", "").casefold().strip()
+                and a.get("email", "").strip() != ""
+            )
+            or (
+                a.get("orcid", "").casefold().strip()
+                == b.get("orcid", "").casefold().strip()
+                and a.get("orcid", "").strip() != ""
+            )
+            or (
+                f"{a.get('given-names', '').casefold().strip()} {a.get('family-names', '').casefold().strip()}".strip()
+                == f"{b.get('given-names', '').casefold().strip()} {b.get('family-names', '').casefold().strip()}".strip()
+                and f"{a.get('given-names', '').casefold().strip()} {a.get('family-names', '').casefold().strip()}".strip()
+                != ""
             )
         )
 
@@ -225,10 +244,13 @@ class CffManager:
                 # determine the type of user
                 user = resp.json()
                 user_type = user.get("type")
+                user_profile_url: str = (
+                    f"https://github.com/{contributor.casefold().strip()}"
+                )
 
                 if user_type == "Organization":
                     entry["name"] = user.get("name") or contributor
-                    entry["alias"] = contributor
+                    entry["alias"] = user_profile_url
                     if user.get("email"):
                         entry["email"] = user["email"]
                 else:
@@ -238,10 +260,10 @@ class CffManager:
                     if len(name_parts) > 1:
                         entry["given-names"] = name_parts[0]
                         entry["family-names"] = name_parts[1]
-                        entry["alias"] = contributor
+                        entry["alias"] = user_profile_url
                     else:
                         entry["name"] = full_name
-                        entry["alias"] = contributor
+                        entry["alias"] = user_profile_url
                         warnings.append(
                             f"- @{contributor}: Only one name part found, treated as entity for deduplication consistency.{contribution_note}"
                         )
