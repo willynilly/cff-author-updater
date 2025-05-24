@@ -241,14 +241,15 @@ class GithubManager:
 
 {comment_contributions}
 
-**Updated `{cff_path}` file:**
+**Recommended `{cff_path}` file (updated with new authors):**
 ```yaml
 {yaml.dump(cff, sort_keys=False)}
 ```
+***Important: This recommended `{cff_path}` file has not been changed yet on this pull request. It needs to be manually copied and committed to the repository.***
 """
 
         if warnings:
-            comment_body += "\n**Warnings & Recommendations:**\n" + "\n".join(warnings)
+            comment_body += "\n**Warnings:**\n" + "\n".join(warnings)
 
         if logs:
             comment_body += f"""
