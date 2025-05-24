@@ -1,5 +1,5 @@
-name: Update CFF Authors from Pull Request Contributions
-description: Add GitHub and raw commit authors to the authors section of CITATION.cff
+name: CFF Author Updater
+description: Add GitHub and raw commit authors to the authors section of CITATION.cff and post a pull request comment with updated CFF and qualifying contributions from new authors.
 
 inputs:
   github_token:
