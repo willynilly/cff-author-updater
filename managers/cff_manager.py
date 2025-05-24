@@ -81,6 +81,8 @@ class CffManager:
             ("issue_comments", "Issue Comment"),
         ]
 
+        print("contribution_details", contribution_details)
+
         contribution_note: str = ""
         if isinstance(contributor, tuple):
             contributor_name = contributor[0]
@@ -107,14 +109,14 @@ class CffManager:
         first_contribution_category: tuple[str, str] | None = None
         for contribution_category in contribution_categories:
             if (
-                contribution_category in contribution_details.get(contributor, {})
-                and len(contribution_details[contributor][contribution_category]) > 0
+                contribution_category[0] in contribution_details.get(contributor, {})
+                and len(contribution_details[contributor][contribution_category[0]]) > 0
             ):
                 first_contribution_category = contribution_category
                 break
         if first_contribution_category:
             first_contribution = contribution_details[contributor][
-                first_contribution_category
+                first_contribution_category[0]
             ][0]
             if first_contribution_category[0] == "commits":
                 sha = first_contribution
