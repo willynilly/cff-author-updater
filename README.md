@@ -96,6 +96,23 @@ jobs:
 
 ---
 
+## 📦 Requirements
+
+To use this action in your repository:
+
+- ✅ A `CITATION.cff` file must exist at the root of your repository, or you must specify a custom path using the `cff_path` input.
+- ✅ Python is automatically set up by the action using `actions/setup-python`.
+- ✅ You must pass GitHub’s built-in `${{ secrets.GITHUB_TOKEN }}` to the `github_token` input.
+- ✅ You must reference this action in your workflow as:
+
+  ```yaml
+  uses: willynilly/action-update-cff-authors@v1.0.0
+  ```
+
+- ✅ For reproducibility, it is recommended to use version tags like `@v1.0.0`.
+
+---
+
 ## 🧠 Contributor Classification and Identity Resolution
 
 Contributors are grouped and processed according to their origin and identity metadata:
@@ -172,26 +189,7 @@ A contributor is only added if **none of the above match**.
 - If only a single name part is available (e.g., "Plato"), the contributor is recorded as an `entity`.
 - This prevents ambiguity and ensures consistent deduplication behavior.
 
-
 ---
-
-## 📦 Requirements
-
-To use this action in your repository:
-
-- ✅ A `CITATION.cff` file must exist at the root of your repository, or you must specify a custom path using the `cff_path` input.
-- ✅ Python is automatically set up by the action using `actions/setup-python`.
-- ✅ You must pass GitHub’s built-in `${{ secrets.GITHUB_TOKEN }}` to the `github_token` input.
-- ✅ You must reference this action in your workflow as:
-
-  ```yaml
-  uses: willynilly/action-update-cff-authors@v1.0.0
-  ```
-
-- ✅ For reproducibility, it is recommended to use version tags like `@v1.0.0`.
-
----
-
 
 ### 🧩 Mapping Contributor Metadata to CFF Fields
 
