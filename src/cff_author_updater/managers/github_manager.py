@@ -58,11 +58,14 @@ class GithubManager:
                 f"https://api.github.com/repos/{repo}/pulls/{pr_number}/reviews"
             )
             for review in session.get(reviews_url).json():
-                user = review.get("user", {}).get("login")
+                github_username = review.get("user", {}).get("login")
                 url = review.get("html_url")
-                if user and user not in bot_blacklist:
-                    contributors.add(user)
-                    contribution_details.setdefault(user, {}).setdefault(
+                if github_username and github_username not in bot_blacklist:
+                    contributor: GitHubUserContributor = GitHubUserContributor(
+                        github_username=github_username
+                    )
+                    contributors.add(contributor)
+                    contribution_details.setdefault(contributor, {}).setdefault(
                         "reviews", []
                     ).append(url)
 
@@ -71,11 +74,14 @@ class GithubManager:
                 f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
             )
             for comment in session.get(comments_url).json():
-                user = comment.get("user", {}).get("login")
+                github_username = comment.get("user", {}).get("login")
                 url = comment.get("html_url")
-                if user and user not in bot_blacklist:
-                    contributors.add(user)
-                    contribution_details.setdefault(user, {}).setdefault(
+                if github_username and github_username not in bot_blacklist:
+                    contributor: GitHubUserContributor = GitHubUserContributor(
+                        github_username=github_username
+                    )
+                    contributors.add(contributor)
+                    contribution_details.setdefault(contributor, {}).setdefault(
                         "pr_comments", []
                     ).append(url)
 
@@ -91,22 +97,28 @@ class GithubManager:
                         f"https://api.github.com/repos/{repo}/issues/{issue_number}"
                     )
                     issue = session.get(issue_url).json()
-                    user = issue.get("user", {}).get("login")
+                    github_username = issue.get("user", {}).get("login")
                     url = issue.get("html_url")
-                    if user and user not in bot_blacklist:
-                        contributors.add(user)
-                        contribution_details.setdefault(user, {}).setdefault(
+                    if github_username and github_username not in bot_blacklist:
+                        contributor: GitHubUserContributor = GitHubUserContributor(
+                            github_username=github_username
+                        )
+                        contributors.add(contributor)
+                        contribution_details.setdefault(contributor, {}).setdefault(
                             "issues", []
                         ).append(url)
 
                 if Flags.has("authorship_for_pr_issue_comments"):
                     comments_url = f"https://api.github.com/repos/{repo}/issues/{issue_number}/comments"
                     for comment in session.get(comments_url).json():
-                        user = comment.get("user", {}).get("login")
+                        github_username = comment.get("user", {}).get("login")
                         url = comment.get("html_url")
-                        if user and user not in bot_blacklist:
-                            contributors.add(user)
-                            contribution_details.setdefault(user, {}).setdefault(
+                        if github_username and github_username not in bot_blacklist:
+                            contributor: GitHubUserContributor = GitHubUserContributor(
+                                github_username=github_username
+                            )
+                            contributors.add(contributor)
+                            contribution_details.setdefault(contributor, {}).setdefault(
                                 "issue_comments", []
                             ).append(url)
 

@@ -432,7 +432,7 @@ class CffManager:
         normalized = []
         for contributor, contributions in contribution_details.items():
             normalized_contributor = {
-                "contributor": contributor,
+                "contributor": contributor.to_dict(),
                 "contributions": contributions,
             }
             normalized.append(normalized_contributor)
