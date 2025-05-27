@@ -181,13 +181,15 @@ class GithubManager:
         return sorted(contributors), contribution_details
 
     def get_github_action_version(self) -> str:
-        # Works reliably from an installed package
-        current_file = Path(__file__).resolve()
-        action_root = current_file.parent.parent.parent
+        action_root = (
+            Path(os.environ.get("GITHUB_ACTION_PATH", ""))
+            if "GITHUB_ACTION_PATH" in os.environ
+            else Path(__file__).resolve().parent.parent.parent
+        )
         cff_path = action_root / "CITATION.cff"
 
         if not cff_path.exists():
-            raise FileNotFoundError(f"Action CITATION.cff not found at: {cff_path}")
+            raise FileNotFoundError(f"CITATION.cff not found at: {cff_path}")
 
         with cff_path.open("r") as f:
             cff_data = yaml.safe_load(f)
