@@ -48,5 +48,8 @@ pythonpath = [
   "src"
 ]
 
-[tool.hatch.build.targets.sdist.force-include]
-"CITATION.cff" = "src/cff-author-updater/CITATION.cff"
+[tool.hatch.build]
+include = ["src/cff_author_updater/**", "CITATION.cff"]
+
+[project.scripts]
+cff-author-updater = "cff_author_updater.main:main"

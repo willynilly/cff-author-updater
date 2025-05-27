@@ -78,8 +78,11 @@ runs:
     - run: pip install requests pyyaml cffconvert
       shell: bash
 
+    - run: pip install .
+      shell: bash
+
     - id: update_cff_authors
-      run: python ${{ github.action_path }}/src/cff_author_updater/main.py
+      run: cff-author-updater
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}

@@ -179,8 +179,10 @@ class GithubManager:
         return sorted(contributors), contribution_details
 
     def get_github_action_version(self) -> str:
-        action_path = Path(os.environ.get("GITHUB_ACTION_PATH", ""))
-        cff_path = action_path / "CITATION.cff"
+        # Works reliably from an installed package
+        current_file = Path(__file__).resolve()
+        action_root = current_file.parent.parent.parent
+        cff_path = action_root / "CITATION.cff"
 
         if not cff_path.exists():
             raise FileNotFoundError(f"Action CITATION.cff not found at: {cff_path}")
@@ -188,8 +190,7 @@ class GithubManager:
         with cff_path.open("r") as f:
             cff_data = yaml.safe_load(f)
 
-        version = cff_data.get("version", "")
-        return version
+        return cff_data.get("version", "")
 
     def post_pull_request_comment(
         self,
