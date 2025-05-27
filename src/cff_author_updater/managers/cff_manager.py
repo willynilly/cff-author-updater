@@ -5,14 +5,14 @@ import requests
 import yaml
 
 from cff_author_updater.cff_file import CffFile
-from contributors.git_commit_contributor import GitCommitContributor
-from contributors.github_user_contributor import (
+from cff_author_updater.contributors.git_commit_contributor import GitCommitContributor
+from cff_author_updater.contributors.github_user_contributor import (
     GitHubUserContributor,
     parse_github_username_from_github_profile_url,
 )
 from cff_author_updater.flags import Flags
-from managers.github_manager import GithubManager
-from managers.orcid_manager import OrcidManager
+from cff_author_updater.managers.github_manager import GithubManager
+from cff_author_updater.managers.orcid_manager import OrcidManager
 
 
 class CffManager:
