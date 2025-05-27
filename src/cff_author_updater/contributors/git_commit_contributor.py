@@ -1,4 +1,4 @@
-from contributors.contributor import Contributor
+from cff_author_updater.contributors.contributor import Contributor
 
 
 class GitCommitContributor(Contributor):

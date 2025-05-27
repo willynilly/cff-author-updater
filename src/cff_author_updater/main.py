@@ -5,9 +5,9 @@ import sys
 
 from cff_author_updater.flags import Flags
 
-from managers.cff_manager import CffManager
-from managers.github_manager import GithubManager
-from managers.orcid_manager import OrcidManager
+from cff_author_updater.managers.cff_manager import CffManager
+from cff_author_updater.managers.github_manager import GithubManager
+from cff_author_updater.managers.orcid_manager import OrcidManager
 from cff_author_updater.utils import add_more_contribution_details
 
 
