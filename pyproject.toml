@@ -51,5 +51,8 @@ pythonpath = [
 [tool.hatch.build]
 include = ["src/cff_author_updater/**", "CITATION.cff"]
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/cff_author_updater"]
+
 [project.scripts]
 cff-author-updater = "cff_author_updater.main:main"
