@@ -2,7 +2,6 @@ class Contributor:
 
     def __init__(self, id: str):
         self.id = id
-        # self.contributions = []
 
     def __hash__(self):
         return hash(self.id)
