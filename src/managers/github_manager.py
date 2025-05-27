@@ -1,7 +1,12 @@
 import os
+from pathlib import Path
 import re
 import requests
 import yaml
+
+from contributors.git_commit_contributor import GitCommitContributor
+from contributors.github_user_contributor import GitHubUserContributor
+from flags import Flags
 
 UNKNOWN_CONTRIBUTOR_KEY = ("unknown", None)
 
@@ -9,7 +14,7 @@ UNKNOWN_CONTRIBUTOR_KEY = ("unknown", None)
 class GithubManager:
 
     def __init__(self):
-        pass
+        self.github_action_version = self.get_github_action_version()
 
     def get_github_session(self, token) -> requests.Session:
         session: requests.Session = requests.Session()
@@ -37,7 +42,6 @@ class GithubManager:
         token: str,
         repo: str,
         pr_number: str,
-        flags: dict,
         bot_blacklist: set | None = None,
     ) -> tuple[set, dict]:
         if bot_blacklist is None:
@@ -47,7 +51,7 @@ class GithubManager:
         contributors: set = set()
         contribution_details: dict = {}
 
-        if flags.get("authorship_for_pr_reviews"):
+        if Flags.has("authorship_for_pr_reviews"):
             reviews_url = (
                 f"https://api.github.com/repos/{repo}/pulls/{pr_number}/reviews"
             )
@@ -60,7 +64,7 @@ class GithubManager:
                         "reviews", []
                     ).append(url)
 
-        if flags.get("authorship_for_pr_comment"):
+        if Flags.has("authorship_for_pr_comment"):
             comments_url: str = (
                 f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
             )
@@ -73,14 +77,14 @@ class GithubManager:
                         "pr_comments", []
                     ).append(url)
 
-        if flags.get("authorship_for_pr_issues") or flags.get(
+        if Flags.has("authorship_for_pr_issues") or Flags.has(
             "authorship_for_pr_issue_comments"
         ):
             linked_issues = self.get_linked_issues(
                 session=session, repo=repo, pr_number=pr_number
             )
             for issue_number in linked_issues:
-                if flags.get("authorship_for_pr_issues"):
+                if Flags.has("authorship_for_pr_issues"):
                     issue_url: str = (
                         f"https://api.github.com/repos/{repo}/issues/{issue_number}"
                     )
@@ -93,7 +97,7 @@ class GithubManager:
                             "issues", []
                         ).append(url)
 
-                if flags.get("authorship_for_pr_issue_comments"):
+                if Flags.has("authorship_for_pr_issue_comments"):
                     comments_url = f"https://api.github.com/repos/{repo}/issues/{issue_number}/comments"
                     for comment in session.get(comments_url).json():
                         user = comment.get("user", {}).get("login")
@@ -135,10 +139,11 @@ class GithubManager:
             github_author = c.get("author")
 
             if github_author and github_author.get("login"):
-                user = github_author["login"]
-                if user not in bot_blacklist:
-                    contributors.add(user)
-                    contribution_details.setdefault(user, {}).setdefault(
+                username = github_author["login"]
+                if username not in bot_blacklist:
+                    contributor = GitHubUserContributor(github_username=username)
+                    contributors.add(contributor)
+                    contribution_details.setdefault(contributor, {}).setdefault(
                         "commits", []
                     ).append(sha)
             elif commit_author:
@@ -146,10 +151,12 @@ class GithubManager:
                 if name in bot_blacklist:
                     break
                 email = commit_author.get("email")
-                key = (name.strip(), email.strip())
                 if name or email:
-                    contributors.add(key)
-                    contribution_details.setdefault(key, {}).setdefault(
+                    contributor = GitCommitContributor(
+                        git_name=name.strip(), git_email=email.strip()
+                    )
+                    contributors.add(contributor)
+                    contribution_details.setdefault(contributor, {}).setdefault(
                         "commits", []
                     ).append(sha)
                 else:
@@ -171,9 +178,22 @@ class GithubManager:
 
         return sorted(contributors), contribution_details
 
+    def get_github_action_version(self) -> str:
+        action_path = Path(os.environ.get("GITHUB_ACTION_PATH", ""))
+        cff_path = action_path / "CITATION.cff"
+
+        if not cff_path.exists():
+            raise FileNotFoundError(f"Action CITATION.cff not found at: {cff_path}")
+
+        with cff_path.open("r") as f:
+            cff_data = yaml.safe_load(f)
+
+        version = cff_data.get("version", "")
+        return version
+
     def post_pull_request_comment(
         self,
-        cff_path: str,
+        cff_path: Path,
         cff: dict,
         warnings: list,
         logs: list,
@@ -206,20 +226,15 @@ class GithubManager:
                     missing_author_message = f" (Missing from `{cff_path}`)"
                 else:
                     missing_author_message = ""
-                if isinstance(new_author, str):
+                if isinstance(new_author, GitHubUserContributor):
                     # github user
                     comment_contributions += (
                         f"\n#### @{new_author}{missing_author_message}\n"
                     )
-                elif (
-                    isinstance(tuple, new_author)
-                    and len(new_author) == 2
-                    and isinstance(new_author[0], str)
-                    and isinstance(new_author[1], str)
-                ):
+                elif isinstance(new_author, GitCommitContributor):
                     # non github committer
-                    new_author_name = new_author[0]
-                    new_author_email = new_author[1]
+                    new_author_name = new_author.git_name
+                    new_author_email = new_author.git_email
                     if new_author_email:
                         comment_contributions += (
                             f"\n#### {new_author_email}{missing_author_message}\n"
@@ -230,7 +245,7 @@ class GithubManager:
                         )
                 else:
                     raise Exception(
-                        "Invalid new_author: It must be a Github username or a tuple containing a name and email pair."
+                        "Invalid new_author: It must be a GitHubUserContributor or a GitCommitContributor."
                     )
 
                 details = contribution_details.get(new_author, {})
@@ -282,7 +297,7 @@ class GithubManager:
 
 _Last updated: {timestamp} UTC · Commit [`{commit_sha_short}`]({commit_url})_
 
-***Powered by [CFF Author Updater](https://github.com/willynilly/cff-author-updater)***
+***Powered by [CFF Author Updater v{self.github_action_version}](https://github.com/willynilly/cff-author-updater)***
 """
 
         headers = {

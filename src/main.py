@@ -1,11 +1,14 @@
 import os
 import json
+from pathlib import Path
 import sys
 
-from managers.cff_manager import CffManager
-from managers.github_manager import GithubManager
-from managers.orcid_manager import OrcidManager
-from utils import add_more_contribution_details
+from flags import Flags
+
+from src.managers.cff_manager import CffManager
+from src.managers.github_manager import GithubManager
+from src.managers.orcid_manager import OrcidManager
+from src.utils import add_more_contribution_details
 
 
 def main():
@@ -14,12 +17,16 @@ def main():
     )
     repo: str = os.environ["REPO"]
     token: str = os.environ["GITHUB_TOKEN"]
-    cff_path: str = os.environ.get("CFF_PATH", "CITATION.cff")
+    cff_path: Path = Path(os.environ.get("CFF_PATH", "CITATION.cff"))
     output_file: str = os.environ.get("GITHUB_OUTPUT", "/tmp/github_output.txt")
     pr_number = None
+    github_event_path: Path = Path(os.environ.get("GITHUB_EVENT_PATH", ""))
 
-    if os.path.exists(os.environ.get("GITHUB_EVENT_PATH", "")):
-        with open(os.environ["GITHUB_EVENT_PATH"], "r") as f:
+    if not cff_path or not cff_path.exists():
+        raise Exception(f"Invalid CFF_PATH env variable: `{cff_path}` does not exist.")
+
+    if github_event_path and github_event_path.exists():
+        with open(github_event_path, "r") as f:
             event = json.load(f)
             pr_number = event.get("number") or event.get("pull_request", {}).get(
                 "number"
@@ -30,41 +37,19 @@ def main():
                 base_branch = event["pull_request"]["base"]["ref"]
                 repo_for_compare = head_repo
             else:
-                print("This workflow only supports pull_request events.")
-                return
+                raise Exception("This workflow only supports pull_request events.")
     else:
-        print("GITHUB_EVENT_PATH is missing.")
-        return
+        raise Exception("GITHUB_EVENT_PATH is missing.")
 
-    flags: dict = {
-        "commits": os.environ.get("AUTHORSHIP_FOR_PR_COMMITS", "true").casefold()
-        == "true",
-        "reviews": os.environ.get("AUTHORSHIP_FOR_PR_REVIEWS", "true").casefold()
-        == "true",
-        "issues": os.environ.get("AUTHORSHIP_FOR_PR_ISSUES", "true").casefold()
-        == "true",
-        "issue_comments": os.environ.get(
-            "AUTHORSHIP_FOR_PR_ISSUE_COMMENTS", "true"
-        ).casefold()
-        == "true",
-        "pr_comments": os.environ.get("AUTHORSHIP_FOR_PR_COMMENT", "true").casefold()
-        == "true",
-        "post_comment": os.environ.get("POST_COMMENT", "true").casefold() == "true",
-        "missing_author_invalidates_pr": os.environ.get(
-            "MISSING_AUTHOR_INVALIDATES_PR", "true"
-        ).casefold()
-        == "true",
-    }
-
-    orcid_manager = OrcidManager()
-    github_manager = GithubManager()
-    cff_manager = CffManager(
+    orcid_manager: OrcidManager = OrcidManager()
+    github_manager: GithubManager = GithubManager()
+    cff_manager: CffManager = CffManager(
         cff_path=cff_path, orcid_manager=orcid_manager, github_manager=github_manager
     )
 
     contributors: set = set()
     contribution_details: dict = {}
-    if flags["commits"]:
+    if Flags.has("authorship_for_pr_commits"):
         commit_contributors, more_contribution_details = (
             github_manager.collect_commit_contributors(
                 token=token,
@@ -81,19 +66,12 @@ def main():
         )
 
     if pr_number:
-        metadata_flags = {
-            "authorship_for_pr_reviews": flags["reviews"],
-            "authorship_for_pr_issues": flags["issues"],
-            "authorship_for_pr_issue_comments": flags["issue_comments"],
-            "authorship_for_pr_comment": flags["pr_comments"],
-        }
 
         collected_contributors, more_contribution_details = (
             github_manager.collect_metadata_contributors(
                 token=token,
                 repo=repo,
                 pr_number=pr_number,
-                flags=metadata_flags,
                 bot_blacklist=bot_blacklist,
             )
         )
@@ -110,7 +88,6 @@ def main():
             repo=repo,
             pr_number=pr_number,
             output_file=output_file,
-            flags=flags,
             repo_for_compare=repo_for_compare,
             contribution_details=contribution_details,
         )
@@ -119,7 +96,7 @@ def main():
             print(
                 f"The `{cff_path}` file has been updated with {len(contributors)} new authors."
             )
-            if flags["missing_author_invalidates_pr"] and len(missing_authors):
+            if Flags.has("missing_author_invalidates_pr") and len(missing_authors):
                 print(
                     f"Pull request is invalidated because a new author is missing from the `{cff_path}` file."
                 )

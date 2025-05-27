@@ -1,6 +1,6 @@
 import pytest
 
-from utils import add_more_contribution_details
+from src.utils import add_more_contribution_details
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 {
   "github.copilot.enable": {
-    "*": true,
+    "*": false,
     "plaintext": false,
     "markdown": false,
     "scminput": false,
@@ -16,5 +16,8 @@
   "python.testing.pytestEnabled": true,
 
   "python.envFile": "${workspaceFolder}/.env",
+  "python.analysis.extraPaths": [
+    "./src"
+  ],
 
 }

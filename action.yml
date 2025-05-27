@@ -19,7 +19,7 @@ inputs:
     required: false
     type: string
     default: CITATION.cff
-  post_comment:
+  post_pr_comment:
     description: Whether to post a pull request comment (true/false)
     required: false
     type: boolean
@@ -79,7 +79,7 @@ runs:
       shell: bash
 
     - id: update_cff_authors
-      run: python ${{ github.action_path }}/main.py
+      run: python ${{ github.action_path }}/src/main.py
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
@@ -87,7 +87,7 @@ runs:
         BASE_BRANCH: ${{ inputs.base_branch }}
         HEAD_BRANCH: ${{ inputs.head_branch }}
         CFF_PATH: ${{ inputs.cff_path }}
-        POST_COMMENT: ${{ inputs.post_comment }}
+        POST_PR_COMMENT: ${{ inputs.post_pr_comment }}
         AUTHORSHIP_FOR_PR_COMMITS: ${{ inputs.authorship_for_pr_commits }}
         AUTHORSHIP_FOR_PR_REVIEWS: ${{ inputs.authorship_for_pr_reviews }}
         AUTHORSHIP_FOR_PR_ISSUES: ${{ inputs.authorship_for_pr_issues }}

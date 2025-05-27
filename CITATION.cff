@@ -19,8 +19,8 @@ keywords:
   - Github
   - metadata
 license: Apache-2.0
-version: "1.0.0"
-date-released: "2025-05-20"
+version: "2.0.0"
+date-released: "2025-05-27"
 references:
   - title: Citation File Format
     version: 1.2.0

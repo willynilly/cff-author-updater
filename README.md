@@ -48,13 +48,13 @@ jobs:
           fetch-depth: 0
 
       - name: Run cff-author-updater
-        uses: willynilly/cff-author-updater@v1.0.0
+        uses: willynilly/cff-author-updater@v2.0.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           base_branch: main
           head_branch: ${{ github.head_ref }}
           cff_path: CITATION.cff
-          post_comment: true
+          post_pr_comment: true
           authorship_for_pr_commits: true
           authorship_for_pr_reviews: true
           authorship_for_pr_issues: true
@@ -74,7 +74,7 @@ jobs:
 | `base_branch`                 | Base branch of the PR                                            | ✅ Yes   | —                      |
 | `head_branch`                 | Source branch of the PR                                          | ✅ Yes   | —                      |
 | `cff_path`                    | Path to your `CITATION.cff` file                                 | ❌ No    | `CITATION.cff`         |
-| `post_comment`                | Whether to comment the updated CFF file on the PR                | ❌ No    | `true`                 |                 |
+| `post_pr_comment`                | Whether to comment the updated CFF file on the PR                | ❌ No    | `true`                 |                 |
 | `authorship_for_pr_commits`  | Include commit authors and co-authors as authors                     | ❌ No    | `true`                 |
 | `authorship_for_pr_reviews`  | Include users who reviewed the PR as authors                                   | ❌ No    | `true`                 |
 | `authorship_for_pr_issues`   | Include authors of issues linked to the PR as authors                           | ❌ No    | `true`                 |
@@ -106,10 +106,10 @@ To use this action in your repository:
 - ✅ You must reference this action in your workflow as:
 
   ```yaml
-  uses: willynilly/action-update-cff-authors@v1.0.0
+  uses: willynilly/action-update-cff-authors@v2.0.0
   ```
 
-- ✅ For reproducibility, it is recommended to use version tags like `@v1.0.0`.
+- ✅ For reproducibility, it is recommended to use version tags like `@v2.0.0`.
 
 ---
 
