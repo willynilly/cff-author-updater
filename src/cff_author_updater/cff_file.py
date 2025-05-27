@@ -26,7 +26,7 @@ class CffFile:
         with open(cff_path, "r") as f:
             self.original_cff = yaml.safe_load(f)
 
-        self.cff = deepcopy.copy(self.original_cff)
+        self.cff = deepcopy(self.original_cff)
 
     @property
     def cff(self):
