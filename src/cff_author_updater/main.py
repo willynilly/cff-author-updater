@@ -3,12 +3,12 @@ import json
 from pathlib import Path
 import sys
 
-from flags import Flags
+from cff_author_updater.flags import Flags
 
-from src.managers.cff_manager import CffManager
-from src.managers.github_manager import GithubManager
-from src.managers.orcid_manager import OrcidManager
-from src.utils import add_more_contribution_details
+from managers.cff_manager import CffManager
+from managers.github_manager import GithubManager
+from managers.orcid_manager import OrcidManager
+from cff_author_updater.utils import add_more_contribution_details
 
 
 def main():

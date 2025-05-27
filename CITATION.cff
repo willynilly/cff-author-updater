@@ -16,7 +16,7 @@ abstract: >-
 keywords:
   - CFF
   - citation
-  - Github
+  - GitHub
   - metadata
 license: Apache-2.0
 version: "2.0.0"

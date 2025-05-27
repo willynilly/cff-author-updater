@@ -1,5 +1,5 @@
 import re
-from src.contributors.contributor import Contributor
+from contributors.contributor import Contributor
 
 GITHUB_USER_PROFILE_URL_REGEX = re.compile(
     r"^https:\/\/github\.com\/(?P<username>[a-zA-Z\d](?:[a-zA-Z\d]|-(?=[a-zA-Z\d])){0,38})$"

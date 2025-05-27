@@ -1,6 +1,6 @@
 import pytest
 
-from src.utils import add_more_contribution_details
+from cff_author_updater.utils import add_more_contribution_details
 
 
 @pytest.fixture

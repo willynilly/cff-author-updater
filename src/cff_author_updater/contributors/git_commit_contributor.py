@@ -1,4 +1,4 @@
-from src.contributors.contributor import Contributor
+from contributors.contributor import Contributor
 
 
 class GitCommitContributor(Contributor):

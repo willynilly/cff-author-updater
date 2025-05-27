@@ -4,13 +4,13 @@ from pathlib import Path
 import requests
 import yaml
 
-from cff_file import CffFile
+from cff_author_updater.cff_file import CffFile
 from contributors.git_commit_contributor import GitCommitContributor
 from contributors.github_user_contributor import (
     GitHubUserContributor,
     parse_github_username_from_github_profile_url,
 )
-from flags import Flags
+from cff_author_updater.flags import Flags
 from managers.github_manager import GithubManager
 from managers.orcid_manager import OrcidManager
 

@@ -6,7 +6,7 @@ import yaml
 
 from contributors.git_commit_contributor import GitCommitContributor
 from contributors.github_user_contributor import GitHubUserContributor
-from flags import Flags
+from cff_author_updater.flags import Flags
 
 UNKNOWN_CONTRIBUTOR_KEY = ("unknown", None)
 
