@@ -411,8 +411,7 @@ class CffManager:
         missing_authors: set = contributors - already_in_cff_contributors
         if Flags.has("post_pr_comment") and pr_number:
             self.github_manager.post_pull_request_comment(
-                cff_path=self.cff_path,
-                cff=cff,
+                cff_file=self.cff_file,
                 warnings=warnings,
                 logs=logs,
                 token=token,

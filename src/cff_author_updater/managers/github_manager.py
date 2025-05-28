@@ -4,6 +4,7 @@ import re
 import requests
 import yaml
 
+from cff_author_updater.cff_file import CffFile
 from cff_author_updater.contributors.git_commit_contributor import GitCommitContributor
 from cff_author_updater.contributors.github_user_contributor import (
     GitHubUserContributor,
@@ -210,8 +211,7 @@ class GithubManager:
 
     def post_pull_request_comment(
         self,
-        cff_path: Path,
-        cff: dict,
+        cff_file: CffFile,
         warnings: list,
         logs: list,
         token: str,
@@ -222,6 +222,9 @@ class GithubManager:
         missing_authors: set,
         missing_author_invalidates_pr: bool,
     ):
+        cff_path = cff_file.cff_path
+        cff = cff_file.cff
+        original_cff = cff_file.original_cff
 
         marker: str = "<!-- contributor-check-comment -->"
         timestamp = (
@@ -296,7 +299,12 @@ class GithubManager:
                 comment_body += f" If the `{cff_path}` file is missing any new author, the pull request will remain invalid."
             comment_body += f"***"
         else:
-            comment_body += f"**Current `{cff_path}` file contains all new authors.**"
+            comment_body += f"""
+**Current `{cff_path}` file contains all new authors.**
+```yaml
+{yaml.dump(original_cff, sort_keys=False)}
+```
+"""
         if warnings:
             comment_body += "\n\n**Warnings:**\n" + "\n".join(warnings)
 
