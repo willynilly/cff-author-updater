@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import os
 from pathlib import Path
 import re
@@ -227,12 +228,8 @@ class GithubManager:
         original_cff = cff_file.original_cff
 
         marker: str = "<!-- contributor-check-comment -->"
-        timestamp = (
-            requests.get("https://timeapi.io/api/Time/current/zone?timeZone=UTC")
-            .json()
-            .get("dateTime", "")[:16]
-            .replace("T", " ")
-        )
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+
         commit_sha = os.environ.get("GITHUB_SHA", "")
         commit_sha_short = commit_sha[:7]
         commit_url = f"https://github.com/{repo}/commit/{commit_sha}"
