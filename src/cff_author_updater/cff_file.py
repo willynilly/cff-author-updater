@@ -3,6 +3,8 @@ from pathlib import Path
 
 import yaml
 
+from cff_author_updater.ordered_yaml_loader import OrderedYamlLoader
+
 
 class CffFile:
 
@@ -24,7 +26,7 @@ class CffFile:
 
         # create a dictionary from the CFF file
         with open(cff_path, "r") as f:
-            self.original_cff = yaml.safe_load(f)
+            self.original_cff = yaml.load(f, Loader=OrderedYamlLoader)
 
         self.cff = deepcopy(self.original_cff)
 
