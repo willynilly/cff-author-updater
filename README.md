@@ -4,7 +4,7 @@
 
 This GitHub Action adds contributors to the `authors:` section of your `CITATION.cff` file by analyzing pull requests and adding new contributors as authors. Contributors include: commit authors, commit co-authors, pull request reviewers, commenters on issues linked to the pull request, and comments on the pull request itself. You can customize which kinds of contributors can become authors. The action also enriches contributor metadata using GitHub and ORCID.
 
-🛑 **Note:** This action does not modify your repository directly. It posts a comment on the pull request that include a block with your `CITATION.cff` file updated with new authors from that pull request. This comment also includes a detailed list of each new author's contributions (with links) that qualified them for authorship.
+🛑 **Note:** This action does not modify your repository directly. It posts a comment on the pull request that includes a block with your `CITATION.cff` file updated with new authors from that pull request. This comment also includes a detailed list of each new author's contributions (with links) that qualified them for authorship.
 
 ---
 
@@ -16,7 +16,7 @@ This GitHub Action adds contributors to the `authors:` section of your `CITATION
 - Skips duplicate authors using multiple identity checks
 - Posts a pull request comment with the proposed CFF content, which can be manually copied to update the `CITATION.cff`. The comment also contains a detailed breakdown of each new author's qualifying contributions, grouped by category (commits, PR comments, reviews, issues, etc.), with clickable links to each contribution. It also contains warnings and logging information to help provide context for authorship detection and processing.
 - Optionally invalidates pull request when a new author is missing from the `CITATION.cff`.
-- Outputs updated `CITATION.cff` file and detailed constributions in a JSON file for other workflow steps to use.
+- Outputs updated `CITATION.cff` file and detailed contributions in a JSON file for other workflow steps to use.
 
 ---
 
@@ -61,6 +61,7 @@ jobs:
           authorship_for_pr_issue_comments: true
           authorship_for_pr_comment: true
           missing_author_invalidates_pr: true
+          duplicate_author_invalidates_pr: true
           bot_blacklist: github-actions[bot]
 ```
 
@@ -81,6 +82,7 @@ jobs:
 | `authorship_for_pr_issue_comments` | Include users who commented on linked issues as authors                 | ❌ No    | `true`                 |
 | `authorship_for_pr_comment`  | Include users who commented directly on the PR as authors                      | ❌ No    | `true`                 |
 | `missing_author_invalidates_pr`  | Invalidate the pull request if a new author is missing from the CFF file                       | ❌ No    | `true`                 |
+| `duplicate_author_invalidates_pr`  | Invalidate the pull request if there is a duplicate author in the CFF file                       | ❌ No    | `true`                 |
 | `bot_blacklist`              | Comma-separated GitHub usernames to exclude from authorship      | ❌ No    | `github-actions[bot]`  |
 
 ---
@@ -138,7 +140,7 @@ When a contributor is associated with a GitHub account:
 If a commit or co-author entry lacks a GitHub account (i.e. appears as a raw name/email):
 
 - These are **initially treated as `entities`**.
-- If both a name and email are present, and the contributor matches an existing `person`, they are promoted to `person`.
+- If both a name and email are present, and the contributor matches an existing `person`, they are identified as that person.
 - If a name has only a single part (e.g. no `family-names`), the contributor is **retained as an `entity`**, and a warning is posted with the commit SHA.
 - If only an email is provided (no name), the contributor is skipped with a warning.
 - ORCID search is attempted to enrich metadata when a name is full enough (two parts).
@@ -173,21 +175,37 @@ If a commit or co-author entry lacks a GitHub account (i.e. appears as a raw nam
 
 ### Deduplication Strategy
 
-Before adding a contributor, the following identifiers are checked against existing CFF `authors:`:
+Before adding a contributor, the following identifiers are checked against existing CFF `authors:` **in this order**:
 
-1. ORCID
-2. Email address
-3. GitHub user profile URL as `alias` (if available)
-4. Full name (`given-names` + `family-names`)
-5. Entity name
+1. **ORCID:** If both authors have an ORCID and they match, they are considered the same.
+2. **Email:** If both authors have an email and they match, they are considered the same.
+3. **GitHub user profile URL as `alias`:** If both authors have an `alias` that is a GitHub user profile URL and they match, they are considered the same.
+4. **Full name:** If both authors have a full name (for persons: `given-names` + `family-names`; for entities: `name`) and they match (case-insensitive, whitespace-insensitive), they are considered the same author **unless**:
+    - Both authors have an ORCID and the ORCIDs are different (**conflicting ORCIDs**), or
+    - Both authors have a GitHub user profile URL as `alias` and the URLs are different (**conflicting GitHub user profile URLs**).
+    - (Having different emails does **not** prevent deduplication if the full name matches and there are no conflicting ORCIDs or GitHub profile URLs.)
 
 A contributor is only added if **none of the above match**.
 
-#### Author Type Enforcement
+#### Author Type Enforcement and Upgrading
 
-- Contributors **must have both a given name and family name** to be treated as a `person`.
-- If only a single name part is available (e.g., "Plato"), the contributor is recorded as an `entity`.
+- Contributors with both a given name and family name are treated as a `person`. If only a single name part is available (e.g., "Plato"), the contributor is recorded as an `entity`.
+- **If a contributor appears as both an entity and a person (e.g., first as `"name": "Jane Doe"`, then as `"given-names": "Jane", "family-names": "Doe"`), they are considered the same author if their full names match and there are no conflicting ORCIDs or GitHub user profile URLs.**
+- This allows for automatic "upgrading" of an entity to a person if more detailed information becomes available, as long as there are no conflicts as described above.
 - This prevents ambiguity and ensures consistent deduplication behavior.
+
+> **Note:** Deduplication is performed even across different author types (person/entity) if the full name matches and there are no conflicting ORCIDs or GitHub user profile URLs. This allows contributors who were previously added as an entity to be "upgraded" to a person if more information becomes available.
+
+---
+
+**Summary Table:**
+
+| Identifier                  | Match Across Types? | Notes                                                      |
+|-----------------------------|---------------------|------------------------------------------------------------|
+| ORCID                       | Yes                 | If both present and equal                                  |
+| Email                       | Yes                 | If both present and equal                                  |
+| GitHub user profile URL     | Yes                 | If both present, valid, and equal                          |
+| Full name                   | Yes                 | If both present and equal, **unless** conflicting ORCIDs or GitHub user profile URLs are present |
 
 ---
 
@@ -197,7 +215,7 @@ This table describes how contributor metadata from GitHub or commits is mapped t
 
 | Source                         | Metadata Field         | CFF Field              | Notes                                                                 |
 |-------------------------------|------------------------|------------------------|-----------------------------------------------------------------------|
-| GitHub user (individual)      | GitHub username profile URL       | `alias`                | Added as `alias` for traceability                                     |
+| GitHub user (individual)      | GitHub username profile URL       | `alias`                | Added as `alias` for traceability. Deduplication on alias only if it is a valid GitHub user profile URL. |
 | GitHub user (individual)      | Profile name (e.g. "Jane Doe") | `given-names`, `family-names` | Split into first and last; if only one part, treated as `entity`     |
 | GitHub user (individual)      | Email (if public)      | `email`                | Optional; used if present                                             |
 | GitHub user (individual)      | ORCID in bio or matched | `orcid`                | Enriched via ORCID public API                                         |

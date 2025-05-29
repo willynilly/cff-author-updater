@@ -35,4 +35,5 @@ jobs:
           authorship_for_pr_issue_comments: true
           authorship_for_pr_comment: true
           missing_author_invalidates_pr: true
+          duplicate_author_invalidates_pr: true
           bot_blacklist: github-actions[bot]

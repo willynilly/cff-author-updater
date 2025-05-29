@@ -30,6 +30,10 @@ class Flags:
             "MISSING_AUTHOR_INVALIDATES_PR", "true"
         ).casefold()
         == "true",
+        "duplicate_author_invalidates_pr": os.environ.get(
+            "DUPLICATE_AUTHOR_INVALIDATES_PR", "true"
+        ).casefold()
+        == "true",
     }
 
     @classmethod

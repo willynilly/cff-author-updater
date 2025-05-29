@@ -50,7 +50,11 @@ inputs:
     type: boolean
     default: true
   missing_author_invalidates_pr:
-    description: Invalidate pull request if a new author is missing from the CFF
+    description: Invalidate pull request if a new author is missing from the CFF file
+    type: boolean
+    default: true
+  duplicate_author_invalidates_pr:
+    description: Invalidate the pull request if there is a duplicate author in the CFF file
     type: boolean
     default: true
   bot_blacklist:
@@ -96,5 +100,6 @@ runs:
         AUTHORSHIP_FOR_PR_ISSUE_COMMENTS: ${{ inputs.authorship_for_pr_issue_comments }}
         AUTHORSHIP_FOR_PR_COMMENT: ${{ inputs.authorship_for_pr_comment }}
         MISSING_AUTHOR_INVALIDATES_PR: ${{ inputs.missing_author_invalidates_pr }}
+        DUPLICATE_AUTHOR_INVALIDATES_PR: ${{ inputs.duplicate_author_invalidates_pr }}
         BOT_BLACKLIST: ${{ inputs.bot_blacklist }}
         GITHUB_EVENT_PATH: ${{ github.event_path }}

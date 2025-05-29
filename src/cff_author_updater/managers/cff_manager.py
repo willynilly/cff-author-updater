@@ -26,52 +26,6 @@ class CffManager:
         self.cff_path = cff_path
         self.cff_file = CffFile(cff_path=cff_path)
 
-    # def is_same_cff_author(self, a: dict, b: dict):
-    #     a_type: str = self.get_cff_author_type(a)
-    #     b_type: str = self.get_cff_author_type(b)
-
-    #     if a_type == "unknown" or b_type == "unknown":
-    #         raise ValueError("Cannot compare unknown author types.")
-
-    #     # Ensure comparison is between same types
-    #     if a_type != b_type:
-    #         return False
-
-    #     if a_type == "entity":
-    #         return (
-    #             a.get("name", "").casefold().strip()
-    #             == b.get("name", "").casefold().strip()
-    #             and a.get("name", "").strip() != ""
-    #         ) or (
-    #             a.get("alias", "").casefold().strip()
-    #             == b.get("alias", "").casefold().strip()
-    #             and a.get("alias", "").strip() != ""
-    #         )
-
-    #     return (
-    #         (
-    #             a.get("alias", "").casefold().strip()
-    #             == b.get("alias", "").casefold().strip()
-    #             and a.get("alias", "").strip() != ""
-    #         )
-    #         or (
-    #             a.get("email", "").casefold().strip()
-    #             == b.get("email", "").casefold().strip()
-    #             and a.get("email", "").strip() != ""
-    #         )
-    #         or (
-    #             a.get("orcid", "").casefold().strip()
-    #             == b.get("orcid", "").casefold().strip()
-    #             and a.get("orcid", "").strip() != ""
-    #         )
-    #         or (
-    #             f"{a.get('given-names', '').casefold().strip()} {a.get('family-names', '').casefold().strip()}".strip()
-    #             == f"{b.get('given-names', '').casefold().strip()} {b.get('family-names', '').casefold().strip()}".strip()
-    #             and f"{a.get('given-names', '').casefold().strip()} {a.get('family-names', '').casefold().strip()}".strip()
-    #             != ""
-    #         )
-    #     )
-
     def is_same_cff_author(self, cff_author_a: dict, cff_author_b: dict):
         a = cff_author_a
         b = cff_author_b
@@ -392,6 +346,36 @@ class CffManager:
                 f"Cannot create identifier for CFF author: cff_author must have an alias, email, or name."
             )
 
+    def validate_old_cff_authors_are_unique(
+        self, cff: dict, warnings: list[str], duplicate_author_invalidates_pr: bool
+    ):
+        # create warning messages if old authors are not unique
+
+        # assume that old authors listed earlier in the CFF file
+        # are "older" than those listed later in the CFF file
+        old_authors: list[dict] = cff["authors"]
+        for i, author_a in enumerate(old_authors):
+            author_a_identifier = self.create_identifier_of_cff_author_for_warning(
+                cff_author=author_a
+            )
+            for j in range(i + 1, len(old_authors)):
+                author_b = old_authors[j]
+                if self.is_same_cff_author(
+                    cff_author_a=author_a, cff_author_b=author_b
+                ):
+                    author_b_identifier = (
+                        self.create_identifier_of_cff_author_for_warning(
+                            cff_author=author_b
+                        )
+                    )
+                    duplication_message: str = (
+                        f"The original CFF file has these duplicate authors: {author_a_identifier} and {author_b_identifier}"
+                    )
+
+                    warnings.append(duplication_message)
+                    if duplicate_author_invalidates_pr:
+                        raise Exception(duplication_message)
+
     def update_cff(
         self,
         contributors: set,
@@ -435,6 +419,16 @@ class CffManager:
         warnings: list = []
         logs: list = []
 
+        # validate old authors
+        self.validate_old_cff_authors_are_unique(
+            cff=cff,
+            warnings=warnings,
+            duplicate_author_invalidates_pr=Flags.has(
+                "duplicate_author_invalidates_pr"
+            ),
+        )
+
+        # update new authors
         already_in_cff_contributors: set = set()
 
         for contributor in contributors:
