@@ -9,6 +9,7 @@ from cff_author_updater.contributors.git_commit_contributor import GitCommitCont
 from cff_author_updater.contributors.github_user_contributor import (
     GitHubUserContributor,
     parse_github_username_from_github_profile_url,
+    is_github_user_profile_url,
 )
 from cff_author_updater.flags import Flags
 from cff_author_updater.managers.github_manager import GithubManager
@@ -25,51 +26,142 @@ class CffManager:
         self.cff_path = cff_path
         self.cff_file = CffFile(cff_path=cff_path)
 
-    def is_same_cff_author(self, a: dict, b: dict):
+    # def is_same_cff_author(self, a: dict, b: dict):
+    #     a_type: str = self.get_cff_author_type(a)
+    #     b_type: str = self.get_cff_author_type(b)
+
+    #     if a_type == "unknown" or b_type == "unknown":
+    #         raise ValueError("Cannot compare unknown author types.")
+
+    #     # Ensure comparison is between same types
+    #     if a_type != b_type:
+    #         return False
+
+    #     if a_type == "entity":
+    #         return (
+    #             a.get("name", "").casefold().strip()
+    #             == b.get("name", "").casefold().strip()
+    #             and a.get("name", "").strip() != ""
+    #         ) or (
+    #             a.get("alias", "").casefold().strip()
+    #             == b.get("alias", "").casefold().strip()
+    #             and a.get("alias", "").strip() != ""
+    #         )
+
+    #     return (
+    #         (
+    #             a.get("alias", "").casefold().strip()
+    #             == b.get("alias", "").casefold().strip()
+    #             and a.get("alias", "").strip() != ""
+    #         )
+    #         or (
+    #             a.get("email", "").casefold().strip()
+    #             == b.get("email", "").casefold().strip()
+    #             and a.get("email", "").strip() != ""
+    #         )
+    #         or (
+    #             a.get("orcid", "").casefold().strip()
+    #             == b.get("orcid", "").casefold().strip()
+    #             and a.get("orcid", "").strip() != ""
+    #         )
+    #         or (
+    #             f"{a.get('given-names', '').casefold().strip()} {a.get('family-names', '').casefold().strip()}".strip()
+    #             == f"{b.get('given-names', '').casefold().strip()} {b.get('family-names', '').casefold().strip()}".strip()
+    #             and f"{a.get('given-names', '').casefold().strip()} {a.get('family-names', '').casefold().strip()}".strip()
+    #             != ""
+    #         )
+    #     )
+
+    def is_same_cff_author(self, cff_author_a: dict, cff_author_b: dict):
+        a = cff_author_a
+        b = cff_author_b
+
         a_type: str = self.get_cff_author_type(a)
         b_type: str = self.get_cff_author_type(b)
 
         if a_type == "unknown" or b_type == "unknown":
             raise ValueError("Cannot compare unknown author types.")
 
-        # Ensure comparison is between same types
-        if a_type != b_type:
-            return False
+        # Match in the following order (case-insensitive and surrounding whitespace insensitive):
+        # 1. orcid
+        # 2. email
+        # 3. alias (only using GitHub user profile URL)
+        # 4. full name (using given-names + ' ' + family-names if type person, or 'name' that has at least two parts if type is entity)
+        # when comparing full names, the authors are the same only if one of the following applies:
+        # the authors are of the same CFF type (both persons or both entities)
+        # the authors
 
-        if a_type == "entity":
-            return (
-                a.get("name", "").casefold().strip()
-                == b.get("name", "").casefold().strip()
-                and a.get("name", "").strip() != ""
-            ) or (
-                a.get("alias", "").casefold().strip()
-                == b.get("alias", "").casefold().strip()
-                and a.get("alias", "").strip() != ""
-            )
+        # match orcid
+        a_orcid = a.get("orcid", "").casefold().strip()
+        b_orcid = b.get("orcid", "").casefold().strip()
+        if a_orcid and a_orcid == b_orcid:
+            return True
 
-        return (
-            (
-                a.get("alias", "").casefold().strip()
-                == b.get("alias", "").casefold().strip()
-                and a.get("alias", "").strip() != ""
-            )
-            or (
-                a.get("email", "").casefold().strip()
-                == b.get("email", "").casefold().strip()
-                and a.get("email", "").strip() != ""
-            )
-            or (
-                a.get("orcid", "").casefold().strip()
-                == b.get("orcid", "").casefold().strip()
-                and a.get("orcid", "").strip() != ""
-            )
-            or (
+        # else, match on email
+        a_email = a.get("email", "").casefold().strip()
+        b_email = b.get("email", "").casefold().strip()
+        if a_email and a_email == b_email:
+            return True
+
+        # else match on alias if and only if it's a GitHub user profile URL
+        a_alias = a.get("alias", "").casefold().strip()
+        b_alias = b.get("alias", "").casefold().strip()
+        a_is_github_user = is_github_user_profile_url(url=a_alias)
+        b_is_github_user = is_github_user_profile_url(url=b_alias)
+        if a_alias and b_alias == b_alias and a_is_github_user:
+            return True
+
+        # else match on full name
+        # for persons, full name is 'given-names' + ' ' + 'family-names'
+        # for entities, full name is 'name'
+
+        if a_type == "person":
+            a_fullname: str = (
                 f"{a.get('given-names', '').casefold().strip()} {a.get('family-names', '').casefold().strip()}".strip()
-                == f"{b.get('given-names', '').casefold().strip()} {b.get('family-names', '').casefold().strip()}".strip()
-                and f"{a.get('given-names', '').casefold().strip()} {a.get('family-names', '').casefold().strip()}".strip()
-                != ""
             )
-        )
+        else:
+            a_fullname: str = a.get("name", "").casefold().strip()
+
+        if b_type == "person":
+            b_fullname: str = (
+                f"{b.get('given-names', '').casefold().strip()} {b.get('family-names', '').casefold().strip()}".strip()
+            )
+        else:
+            b_fullname: str = b.get("name", "").casefold().strip()
+
+        if not a_fullname or not b_fullname:
+            raise ValueError(
+                "Cannot compare an author that lacks an Orcid, email, alias, and name."
+            )
+
+        if a_fullname == b_fullname:
+            # if they are both people with the same full name
+            # of if they are both entities with same full name then
+            # they are the same author, unless one of the following applies:
+            # a) they have conflicting (and not just missing) orcid values
+            # b) they have conflicting (and not just missing) github user profile URLs
+            # in the alias (have a different alias that is not a github user profile URL
+            # is permissible and not not qualify for this exception)
+            # Note: authors with different emails
+            # (like one that used a different email in their git commits than in the
+            # CITATION.cff file) can be the same author as long as they have
+            # the same full name, and do not have the aforementioned disqualifers
+            # (i.e., conflicting Orcids or Github user profile URLs)
+
+            a_has_orcid = a_orcid != ""
+            b_has_orcid = b_orcid != ""
+            a_github_user_profile_url = a_alias
+            b_github_user_profile_url = b_alias
+            if (a_has_orcid and b_has_orcid and a_orcid != b_orcid) or (
+                a_is_github_user
+                and b_is_github_user
+                and a_github_user_profile_url != b_github_user_profile_url
+            ):
+                return False
+            else:
+                return True
+        else:
+            return False
 
     def get_cff_author_type(self, author: dict):
         if "name" in author:
