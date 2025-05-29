@@ -5,6 +5,7 @@ import requests
 import yaml
 
 from cff_author_updater.cff_file import CffFile
+from cff_author_updater.contributors.cff_author_contributor import CffAuthorContributor
 from cff_author_updater.contributors.git_commit_contributor import GitCommitContributor
 from cff_author_updater.contributors.github_user_contributor import (
     GitHubUserContributor,
@@ -25,105 +26,6 @@ class CffManager:
         self.orcid_manager = orcid_manager
         self.cff_path = cff_path
         self.cff_file = CffFile(cff_path=cff_path)
-
-    def is_same_cff_author(self, cff_author_a: dict, cff_author_b: dict):
-        a = cff_author_a
-        b = cff_author_b
-
-        a_type: str = self.get_cff_author_type(a)
-        b_type: str = self.get_cff_author_type(b)
-
-        if a_type == "unknown" or b_type == "unknown":
-            raise ValueError("Cannot compare unknown author types.")
-
-        # Match in the following order (case-insensitive and surrounding whitespace insensitive):
-        # 1. orcid
-        # 2. email
-        # 3. alias (only using GitHub user profile URL)
-        # 4. full name (using given-names + ' ' + family-names if type person, or 'name' that has at least two parts if type is entity)
-        # when comparing full names, the authors are the same only if one of the following applies:
-        # the authors are of the same CFF type (both persons or both entities)
-        # the authors
-
-        # match orcid
-        a_orcid = a.get("orcid", "").casefold().strip()
-        b_orcid = b.get("orcid", "").casefold().strip()
-        if a_orcid and a_orcid == b_orcid:
-            return True
-
-        # else, match on email
-        a_email = a.get("email", "").casefold().strip()
-        b_email = b.get("email", "").casefold().strip()
-        if a_email and a_email == b_email:
-            return True
-
-        # else match on alias if and only if it's a GitHub user profile URL
-        a_alias = a.get("alias", "").casefold().strip()
-        b_alias = b.get("alias", "").casefold().strip()
-        a_is_github_user = is_github_user_profile_url(url=a_alias)
-        b_is_github_user = is_github_user_profile_url(url=b_alias)
-        if a_alias and b_alias == b_alias and a_is_github_user:
-            return True
-
-        # else match on full name
-        # for persons, full name is 'given-names' + ' ' + 'family-names'
-        # for entities, full name is 'name'
-
-        if a_type == "person":
-            a_fullname: str = (
-                f"{a.get('given-names', '').casefold().strip()} {a.get('family-names', '').casefold().strip()}".strip()
-            )
-        else:
-            a_fullname: str = a.get("name", "").casefold().strip()
-
-        if b_type == "person":
-            b_fullname: str = (
-                f"{b.get('given-names', '').casefold().strip()} {b.get('family-names', '').casefold().strip()}".strip()
-            )
-        else:
-            b_fullname: str = b.get("name", "").casefold().strip()
-
-        if not a_fullname or not b_fullname:
-            raise ValueError(
-                "Cannot compare an author that lacks an Orcid, email, alias, and name."
-            )
-
-        if a_fullname == b_fullname:
-            # if they are both people with the same full name
-            # of if they are both entities with same full name then
-            # they are the same author, unless one of the following applies:
-            # a) they have conflicting (and not just missing) orcid values
-            # b) they have conflicting (and not just missing) github user profile URLs
-            # in the alias (have a different alias that is not a github user profile URL
-            # is permissible and not not qualify for this exception)
-            # Note: authors with different emails
-            # (like one that used a different email in their git commits than in the
-            # CITATION.cff file) can be the same author as long as they have
-            # the same full name, and do not have the aforementioned disqualifers
-            # (i.e., conflicting Orcids or Github user profile URLs)
-
-            a_has_orcid = a_orcid != ""
-            b_has_orcid = b_orcid != ""
-            a_github_user_profile_url = a_alias
-            b_github_user_profile_url = b_alias
-            if (a_has_orcid and b_has_orcid and a_orcid != b_orcid) or (
-                a_is_github_user
-                and b_is_github_user
-                and a_github_user_profile_url != b_github_user_profile_url
-            ):
-                return False
-            else:
-                return True
-        else:
-            return False
-
-    def get_cff_author_type(self, author: dict):
-        if "name" in author:
-            return "entity"
-        elif "given-names" in author and "family-names" in author:
-            return "person"
-        else:
-            return "unknown"
 
     def get_contribution_note_for_warning(
         self,
@@ -202,9 +104,9 @@ class CffManager:
         warnings: list[str],
         logs: list[str],
         contribution_note: str,
-    ) -> dict | None:
+    ) -> CffAuthorContributor | None:
         contributor = github_user_contributor
-        entry: dict = {}
+        a: dict = {}
 
         # Github user contributor
         user_url: str = f"https://api.github.com/users/{contributor.github_username}"
@@ -225,35 +127,35 @@ class CffManager:
         user_profile_url: str = f"https://github.com/{contributor.github_username}"
 
         if user_type == "Organization":
-            entry["name"] = user.get("name") or contributor.github_username
-            entry["alias"] = user_profile_url
+            a["name"] = user.get("name") or contributor.github_username
+            a["alias"] = user_profile_url
             if user.get("email"):
-                entry["email"] = user["email"]
+                a["email"] = user["email"]
         else:
             full_name: str = user.get("name") or contributor.github_username
             name_parts: list[str] = full_name.split(" ", 1)
 
             if len(name_parts) > 1:
-                entry["given-names"] = name_parts[0]
-                entry["family-names"] = name_parts[1]
-                entry["alias"] = user_profile_url
+                a["given-names"] = name_parts[0]
+                a["family-names"] = name_parts[1]
+                a["alias"] = user_profile_url
             else:
-                entry["name"] = full_name
-                entry["alias"] = user_profile_url
+                a["name"] = full_name
+                a["alias"] = user_profile_url
                 warnings.append(
                     f"- @{contributor.github_username}: Only one name part found, treated as entity for deduplication consistency.{contribution_note}"
                 )
-                return entry
+                return CffAuthorContributor(cff_author_dict=a)
 
             if user.get("email"):
-                entry["email"] = user["email"]
+                a["email"] = user["email"]
             orcid = self.orcid_manager.extract_orcid(text=user.get("bio"))
             if not orcid and full_name:
                 orcid = self.orcid_manager.search_orcid(
                     full_name=full_name, email=user.get("email"), logs=logs
                 )
             if orcid and self.orcid_manager.validate_orcid(orcid=orcid):
-                entry["orcid"] = f"https://orcid.org/{orcid}"
+                a["orcid"] = f"https://orcid.org/{orcid}"
             elif orcid:
                 warnings.append(
                     f"- @{contributor.github_username}: ORCID `{orcid}` is invalid or unreachable."
@@ -261,7 +163,7 @@ class CffManager:
             else:
                 warnings.append(f"- @{contributor.github_username}: No ORCID found.")
 
-        return entry
+        return CffAuthorContributor(cff_author_dict=a)
 
     def create_cff_author_from_git_commit_contributor(
         self,
@@ -270,12 +172,12 @@ class CffManager:
         warnings: list[str],
         logs: list[str],
         contribution_note: str,
-    ) -> dict | None:
+    ) -> CffAuthorContributor | None:
         contributor = git_commit_contributor
         name = contributor.git_name
         email = contributor.git_email
         name_parts: list[str] = name.split(" ", 1)
-        new_cff_author: dict = {}
+        new_cff_author_dict: dict = {}
 
         # check whether the git commit contributor
         # is already in the CFF file
@@ -297,16 +199,16 @@ class CffManager:
                     == email.strip().casefold()
                 ):
                     # todo: should we add an option to enrich the existing author with their orcid?
-                    return existing_cff_author
+                    return CffAuthorContributor(cff_author_dict=existing_cff_author)
 
         if len(name_parts) > 1:
-            new_cff_author["given-names"] = name_parts[0]
-            new_cff_author["family-names"] = name_parts[1]
+            new_cff_author_dict["given-names"] = name_parts[0]
+            new_cff_author_dict["family-names"] = name_parts[1]
             if email:
-                new_cff_author["email"] = email
+                new_cff_author_dict["email"] = email
             orcid = self.orcid_manager.search_orcid(name, email, logs)
             if orcid and self.orcid_manager.validate_orcid(orcid):
-                new_cff_author["orcid"] = f"https://orcid.org/{orcid}"
+                new_cff_author_dict["orcid"] = f"https://orcid.org/{orcid}"
             elif orcid:
                 warnings.append(
                     f"- `{name}`: ORCID `{orcid}` is invalid or unreachable."
@@ -314,53 +216,60 @@ class CffManager:
             else:
                 warnings.append(f"- `{name}`: No ORCID found.")
         else:
-            new_cff_author["name"] = name
+            new_cff_author_dict["name"] = name
             if email:
-                new_cff_author["email"] = email
+                new_cff_author_dict["email"] = email
             warnings.append(
                 f"- `{name}`: Only one name part found, treated as entity for deduplication consistency.{contribution_note}"
             )
-        return new_cff_author
+        return CffAuthorContributor(cff_author_dict=new_cff_author_dict)
 
-    def create_identifier_of_cff_author_for_warning(self, cff_author: dict):
+    def create_identifier_of_cff_author_for_warning(
+        self, cff_author: CffAuthorContributor
+    ):
+        a = cff_author.cff_author_dict
         if cff_author is None:
             raise ValueError(
                 f"Cannot create identifier for CFF Author: cff_author cannot be None."
             )
-        if "alias" in cff_author:
+        if "alias" in a:
             username: str | None = parse_github_username_from_github_profile_url(
-                url=cff_author["alias"]
+                url=a["alias"]
             )
             if username is None:
                 raise ValueError(
-                    f"Cannot create identifier for CFF Author: cff_author has an invalid github profile url {cff_author['alias']}."
+                    f"Cannot create identifier for CFF Author: cff_author has an invalid github profile url {a['alias']}."
                 )
             else:
                 return "@" + username
-        elif "email" in cff_author:
-            return cff_author["email"]
-        elif "name" in cff_author:
-            return cff_author["name"]
+        elif "email" in a:
+            return a["email"]
+        elif "name" in a:
+            return a["name"]
         else:
             raise ValueError(
                 f"Cannot create identifier for CFF author: cff_author must have an alias, email, or name."
             )
 
     def validate_old_cff_authors_are_unique(
-        self, cff: dict, warnings: list[str], duplicate_author_invalidates_pr: bool
-    ):
+        self, cff: dict, warnings: list[str]
+    ) -> set[CffAuthorContributor]:
         # create warning messages if old authors are not unique
 
         # assume that old authors listed earlier in the CFF file
         # are "older" than those listed later in the CFF file
-        old_authors: list[dict] = cff["authors"]
+        duplicate_authors: set[CffAuthorContributor] = set()
+        old_authors: list[CffAuthorContributor] = [
+            CffAuthorContributor(cff_author_dict=cff_author_dict)
+            for cff_author_dict in cff["authors"]
+        ]
         for i, author_a in enumerate(old_authors):
             author_a_identifier = self.create_identifier_of_cff_author_for_warning(
                 cff_author=author_a
             )
             for j in range(i + 1, len(old_authors)):
                 author_b = old_authors[j]
-                if self.is_same_cff_author(
+                if CffAuthorContributor.is_same(
                     cff_author_a=author_a, cff_author_b=author_b
                 ):
                     author_b_identifier = (
@@ -368,13 +277,12 @@ class CffManager:
                             cff_author=author_b
                         )
                     )
+                    duplicate_authors.add(author_b)
                     duplication_message: str = (
                         f"The original CFF file has these duplicate authors: {author_a_identifier} and {author_b_identifier}"
                     )
-
                     warnings.append(duplication_message)
-                    if duplicate_author_invalidates_pr:
-                        raise Exception(duplication_message)
+        return duplicate_authors
 
     def update_cff(
         self,
@@ -420,19 +328,15 @@ class CffManager:
         logs: list = []
 
         # validate old authors
-        self.validate_old_cff_authors_are_unique(
-            cff=cff,
-            warnings=warnings,
-            duplicate_author_invalidates_pr=Flags.has(
-                "duplicate_author_invalidates_pr"
-            ),
+        duplicate_authors: set = self.validate_old_cff_authors_are_unique(
+            cff=cff, warnings=warnings
         )
 
         # update new authors
         already_in_cff_contributors: set = set()
 
         for contributor in contributors:
-            new_cff_author: dict | None = None
+            new_cff_author: CffAuthorContributor | None = None
 
             contribution_note = self.get_contribution_note_for_warning(
                 contributor=contributor,
@@ -463,7 +367,7 @@ class CffManager:
                 continue
             else:
                 if any(
-                    self.is_same_cff_author(existing_cff_author, new_cff_author)
+                    CffAuthorContributor.is_same(existing_cff_author, new_cff_author)
                     for existing_cff_author in cff["authors"]
                 ):
                     identifier: str = self.create_identifier_of_cff_author_for_warning(
@@ -473,7 +377,7 @@ class CffManager:
                     warnings.append(f"- {identifier}: Already exists in CFF file.")
                     continue
 
-            cff["authors"].append(new_cff_author)
+            cff["authors"].append(new_cff_author.cff_author_dict)
 
         self.cff_file.cff = cff
         self.cff_file.save()
@@ -508,6 +412,10 @@ class CffManager:
                 missing_authors=missing_authors,
                 missing_author_invalidates_pr=Flags.has(
                     "missing_author_invalidates_pr"
+                ),
+                duplicate_authors=duplicate_authors,
+                duplicate_author_invalidates_pr=Flags.has(
+                    "duplicate_author_invalidates_pr"
                 ),
             )
 

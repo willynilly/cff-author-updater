@@ -222,6 +222,8 @@ class GithubManager:
         repo_for_compare: str,
         missing_authors: set,
         missing_author_invalidates_pr: bool,
+        duplicate_authors: set,
+        duplicate_author_invalidates_pr: bool,
     ):
         cff_path = cff_file.cff_path
         cff = cff_file.cff
