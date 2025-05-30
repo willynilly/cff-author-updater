@@ -71,7 +71,7 @@ class GithubManager:
                         "reviews", []
                     ).append(url)
 
-        if Flags.has("authorship_for_pr_comment"):
+        if Flags.has("authorship_for_pr_comments"):
             comments_url: str = (
                 f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
             )

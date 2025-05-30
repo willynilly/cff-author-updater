@@ -16,12 +16,12 @@ class Flags:
             "AUTHORSHIP_FOR_PR_ISSUES", "true"
         ).casefold()
         == "true",
-        "author_ship_for_pr_issue_comments": os.environ.get(
+        "authorship_for_pr_issue_comments": os.environ.get(
             "AUTHORSHIP_FOR_PR_ISSUE_COMMENTS", "true"
         ).casefold()
         == "true",
         "authorship_for_pr_comments": os.environ.get(
-            "AUTHORSHIP_FOR_PR_COMMENT", "true"
+            "AUTHORSHIP_FOR_PR_COMMENTS", "true"
         ).casefold()
         == "true",
         "post_pr_comment": os.environ.get("POST_PR_COMMENT", "true").casefold()
