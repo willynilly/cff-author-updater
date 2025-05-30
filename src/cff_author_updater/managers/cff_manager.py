@@ -6,9 +6,10 @@ import yaml
 
 from cff_author_updater.cff_file import CffFile
 from cff_author_updater.contributors.cff_author_contributor import CffAuthorContributor
+from cff_author_updater.contributors.contributor import Contributor
 from cff_author_updater.contributors.git_commit_contributor import GitCommitContributor
-from cff_author_updater.contributors.github_user_contributor import (
-    GitHubUserContributor,
+from cff_author_updater.contributors.github_contributor import (
+    GitHubContributor,
     parse_github_username_from_github_profile_url,
     is_github_user_profile_url,
 )
@@ -29,14 +30,14 @@ class CffManager:
 
     def get_contribution_note_for_warning(
         self,
-        contributor: str | tuple[str, str],
+        contributor: GitCommitContributor | GitHubContributor,
         contribution_details: dict,
         repo_for_compare: str,
     ) -> str:
         """
         Get contribution note for warning.
         Args:
-            contributor (str): Contributor name.
+            contributor (GitCommitContributor | GitHubContributor): The contributor.
             contribution_details (dict): Contribution details.
             repo_for_compare (str): Repository for comparison
         Returns:
@@ -62,13 +63,17 @@ class CffManager:
                 contribution_note = f"- `{contributor_email}`: "
             else:
                 raise ValueError(
-                    "Contributor tuple must contain at least one non-empty string."
+                    "GitCommitContributor must contain at least an git name or git email."
                 )
+        elif isinstance(contributor, GitHubContributor):
+            github_username = contributor.github_username
+            if not github_username:
+                raise ValueError("GitHubContributor must have a GitHub username.")
+            contribution_note = f"- @{github_username}: "
         else:
-            contributor_name = contributor
-            if not contributor_name:
-                raise ValueError("Contributor name must be a non-empty string.")
-            contribution_note = f"- @{contributor_name}: "
+            raise ValueError(
+                "Contributor must be either a GitCommitContributor or a GitHubContributor."
+            )
 
         # Find the first contribution category that exists in the contribution details
         # and is not empty
@@ -97,15 +102,15 @@ class CffManager:
             raise Exception("No contribution found for the contributor.")
         return contribution_note
 
-    def create_cff_author_from_github_user_contributor(
+    def create_cff_author_contributor_from_github_contributor(
         self,
-        github_user_contributor: GitHubUserContributor,
+        github_contributor: GitHubContributor,
         token: str,
         warnings: list[str],
         logs: list[str],
         contribution_note: str,
     ) -> CffAuthorContributor | None:
-        contributor = github_user_contributor
+        contributor = github_contributor
         a: dict = {}
 
         # Github user contributor
@@ -145,7 +150,7 @@ class CffManager:
                 warnings.append(
                     f"- @{contributor.github_username}: Only one name part found, treated as entity for deduplication consistency.{contribution_note}"
                 )
-                return CffAuthorContributor(cff_author_dict=a)
+                return CffAuthorContributor(cff_author_data=a)
 
             if user.get("email"):
                 a["email"] = user["email"]
@@ -163,9 +168,9 @@ class CffManager:
             else:
                 warnings.append(f"- @{contributor.github_username}: No ORCID found.")
 
-        return CffAuthorContributor(cff_author_dict=a)
+        return CffAuthorContributor(cff_author_data=a)
 
-    def create_cff_author_from_git_commit_contributor(
+    def create_cff_author_contributor_from_git_commit_contributor(
         self,
         git_commit_contributor: GitCommitContributor,
         cff: dict,
@@ -178,28 +183,6 @@ class CffManager:
         email = contributor.git_email
         name_parts: list[str] = name.split(" ", 1)
         new_cff_author_dict: dict = {}
-
-        # check whether the git commit contributor
-        # is already in the CFF file
-        # based on comparing the git name
-        # with the combination of given_names and family names
-        # from the CFF file.
-        # is so, use the CFF author information from the CFF file
-        # instead of the Git Commit contributor
-        for existing_cff_author in cff["authors"]:
-            if (
-                "given-names" in existing_cff_author
-                and "family-names" in existing_cff_author
-                and "email" in existing_cff_author
-            ):
-                existing_name = f"{existing_cff_author['given-names']} {existing_cff_author['family-names']}".strip().casefold()
-                if (
-                    existing_name == name.strip().casefold()
-                    and existing_cff_author["email"].strip().casefold()
-                    == email.strip().casefold()
-                ):
-                    # todo: should we add an option to enrich the existing author with their orcid?
-                    return CffAuthorContributor(cff_author_dict=existing_cff_author)
 
         if len(name_parts) > 1:
             new_cff_author_dict["given-names"] = name_parts[0]
@@ -222,12 +205,12 @@ class CffManager:
             warnings.append(
                 f"- `{name}`: Only one name part found, treated as entity for deduplication consistency.{contribution_note}"
             )
-        return CffAuthorContributor(cff_author_dict=new_cff_author_dict)
+        return CffAuthorContributor(cff_author_data=new_cff_author_dict)
 
     def create_identifier_of_cff_author_for_warning(
         self, cff_author: CffAuthorContributor
     ):
-        a = cff_author.cff_author_dict
+        a = cff_author.cff_author_data
         if cff_author is None:
             raise ValueError(
                 f"Cannot create identifier for CFF Author: cff_author cannot be None."
@@ -260,8 +243,8 @@ class CffManager:
         # are "older" than those listed later in the CFF file
         duplicate_authors: set[CffAuthorContributor] = set()
         old_authors: list[CffAuthorContributor] = [
-            CffAuthorContributor(cff_author_dict=cff_author_dict)
-            for cff_author_dict in cff["authors"]
+            CffAuthorContributor(cff_author_data=cff_author_data)
+            for cff_author_data in cff["authors"]
         ]
         for i, author_a in enumerate(old_authors):
             author_a_identifier = self.create_identifier_of_cff_author_for_warning(
@@ -269,9 +252,7 @@ class CffManager:
             )
             for j in range(i + 1, len(old_authors)):
                 author_b = old_authors[j]
-                if CffAuthorContributor.is_same(
-                    cff_author_a=author_a, cff_author_b=author_b
-                ):
+                if author_a.is_same_author(cff_author=author_b):
                     author_b_identifier = (
                         self.create_identifier_of_cff_author_for_warning(
                             cff_author=author_b
@@ -286,14 +267,16 @@ class CffManager:
 
     def update_cff(
         self,
-        contributors: set,
+        contributors: set[GitCommitContributor | GitHubContributor],
         token: str,
         repo: str,
         pr_number: str,
         output_file: str,
         repo_for_compare: str,
         contribution_details: dict,
-    ) -> set:
+    ) -> tuple[
+        set[GitCommitContributor | GitHubContributor], set[CffAuthorContributor]
+    ]:
         """
         Process contributors and update the CFF file.
         Args:
@@ -333,7 +316,9 @@ class CffManager:
         )
 
         # update new authors
-        already_in_cff_contributors: set = set()
+        already_in_cff_contributors: set[GitCommitContributor | GitHubContributor] = (
+            set()
+        )
 
         for contributor in contributors:
             new_cff_author: CffAuthorContributor | None = None
@@ -344,21 +329,25 @@ class CffManager:
                 repo_for_compare=repo_for_compare,
             )
 
-            if isinstance(contributor, GitHubUserContributor):
-                new_cff_author = self.create_cff_author_from_github_user_contributor(
-                    github_user_contributor=contributor,
-                    token=token,
-                    contribution_note=contribution_note,
-                    warnings=warnings,
-                    logs=logs,
+            if isinstance(contributor, GitHubContributor):
+                new_cff_author = (
+                    self.create_cff_author_contributor_from_github_contributor(
+                        github_contributor=contributor,
+                        token=token,
+                        contribution_note=contribution_note,
+                        warnings=warnings,
+                        logs=logs,
+                    )
                 )
             elif isinstance(contributor, GitCommitContributor):
-                new_cff_author = self.create_cff_author_from_git_commit_contributor(
-                    git_commit_contributor=contributor,
-                    cff=cff,
-                    contribution_note=contribution_note,
-                    warnings=warnings,
-                    logs=logs,
+                new_cff_author = (
+                    self.create_cff_author_contributor_from_git_commit_contributor(
+                        git_commit_contributor=contributor,
+                        cff=cff,
+                        contribution_note=contribution_note,
+                        warnings=warnings,
+                        logs=logs,
+                    )
                 )
             else:
                 raise Exception("Invalid contributor class.")
@@ -367,17 +356,23 @@ class CffManager:
                 continue
             else:
                 if any(
-                    CffAuthorContributor.is_same(existing_cff_author, new_cff_author)
+                    new_cff_author.is_same_author(
+                        cff_author=CffAuthorContributor(
+                            cff_author_data=existing_cff_author
+                        )
+                    )
                     for existing_cff_author in cff["authors"]
                 ):
                     identifier: str = self.create_identifier_of_cff_author_for_warning(
                         cff_author=new_cff_author
                     )
                     already_in_cff_contributors.add(contributor)
-                    warnings.append(f"- {identifier}: Already exists in CFF file.")
+                    warnings.append(
+                        f"- {identifier}: Already exists in CFF file or already added from another new contribution."
+                    )
                     continue
 
-            cff["authors"].append(new_cff_author.cff_author_dict)
+            cff["authors"].append(new_cff_author.cff_author_data)
 
         self.cff_file.cff = cff
         self.cff_file.save()
@@ -419,7 +414,7 @@ class CffManager:
                 ),
             )
 
-        return missing_authors
+        return missing_authors, duplicate_authors
 
     def create_json_for_contribution_details(self, contribution_details: dict) -> str:
         normalized = []

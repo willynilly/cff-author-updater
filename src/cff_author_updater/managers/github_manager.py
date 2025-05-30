@@ -7,8 +7,8 @@ import yaml
 
 from cff_author_updater.cff_file import CffFile
 from cff_author_updater.contributors.git_commit_contributor import GitCommitContributor
-from cff_author_updater.contributors.github_user_contributor import (
-    GitHubUserContributor,
+from cff_author_updater.contributors.github_contributor import (
+    GitHubContributor,
 )
 from cff_author_updater.flags import Flags
 
@@ -63,7 +63,7 @@ class GithubManager:
                 github_username = review.get("user", {}).get("login")
                 url = review.get("html_url")
                 if github_username and github_username not in bot_blacklist:
-                    contributor: GitHubUserContributor = GitHubUserContributor(
+                    contributor: GitHubContributor = GitHubContributor(
                         github_username=github_username
                     )
                     contributors.add(contributor)
@@ -79,7 +79,7 @@ class GithubManager:
                 github_username = comment.get("user", {}).get("login")
                 url = comment.get("html_url")
                 if github_username and github_username not in bot_blacklist:
-                    contributor: GitHubUserContributor = GitHubUserContributor(
+                    contributor: GitHubContributor = GitHubContributor(
                         github_username=github_username
                     )
                     contributors.add(contributor)
@@ -102,7 +102,7 @@ class GithubManager:
                     github_username = issue.get("user", {}).get("login")
                     url = issue.get("html_url")
                     if github_username and github_username not in bot_blacklist:
-                        contributor: GitHubUserContributor = GitHubUserContributor(
+                        contributor: GitHubContributor = GitHubContributor(
                             github_username=github_username
                         )
                         contributors.add(contributor)
@@ -116,7 +116,7 @@ class GithubManager:
                         github_username = comment.get("user", {}).get("login")
                         url = comment.get("html_url")
                         if github_username and github_username not in bot_blacklist:
-                            contributor: GitHubUserContributor = GitHubUserContributor(
+                            contributor: GitHubContributor = GitHubContributor(
                                 github_username=github_username
                             )
                             contributors.add(contributor)
@@ -157,7 +157,7 @@ class GithubManager:
             if github_author and github_author.get("login"):
                 username = github_author["login"]
                 if username not in bot_blacklist:
-                    contributor = GitHubUserContributor(github_username=username)
+                    contributor = GitHubContributor(github_username=username)
                     contributors.add(contributor)
                     contribution_details.setdefault(contributor, {}).setdefault(
                         "commits", []
@@ -245,7 +245,7 @@ class GithubManager:
                     missing_author_message = f" (Missing from `{cff_path}`)"
                 else:
                     missing_author_message = ""
-                if isinstance(new_author, GitHubUserContributor):
+                if isinstance(new_author, GitHubContributor):
                     # github user
                     comment_contributions += (
                         f"\n#### @{new_author}{missing_author_message}\n"
@@ -264,7 +264,7 @@ class GithubManager:
                         )
                 else:
                     raise Exception(
-                        "Invalid new_author: It must be a GitHubUserContributor or a GitCommitContributor."
+                        "Invalid new_author: It must be a GitHubContributor or a GitCommitContributor."
                     )
 
                 details = contribution_details.get(new_author, {})

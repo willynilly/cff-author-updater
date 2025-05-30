@@ -15,14 +15,24 @@ def parse_github_username_from_github_profile_url(url: str) -> str | None:
     return match.group("username") if match else None
 
 
-class GitHubUserContributor(Contributor):
+class GitHubContributor(Contributor):
 
     def __init__(self, github_username: str):
+        super().__init__()
         self.github_username: str = github_username
         self.github_profile_url: str = "https://github.com/" + self.github_username
         if not is_github_user_profile_url(self.github_profile_url):
             raise ValueError(
-                "Cannot create GitHubUserContributor: invalid GitHub username."
+                "Cannot create GitHubContributor: invalid GitHub username."
             )
+        self.id: str = self.github_profile_url
 
-        super().__init__(id=self.github_profile_url)
+    def to_dict(self) -> dict:
+        """
+        Convert the GitHubContributor to a serializable dictionary representation.
+        """
+        return {
+            "git_name": self.github_username,
+            "git_email": self.github_profile_url,
+            "id": self.id,
+        }
