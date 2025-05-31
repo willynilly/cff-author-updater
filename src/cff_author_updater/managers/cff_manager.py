@@ -22,16 +22,16 @@ from cff_author_updater.managers.contribution_manager import ContributionManager
 from cff_author_updater.managers.github_manager import GithubManager
 from cff_author_updater.managers.orcid_manager import OrcidManager
 
-CONTRIBUTION_CATEGORIES = [
-    ("GitHubPullRequestCommitContribution", "Commit"),
-    ("GitHubPullRequestCommentContribution", "Pull Request Comment"),
-    ("GitHubPullRequestReviewContribution", "Review"),
-    ("GitHubPullRequestIssueContribution", "Issue"),
-    ("GitHubPullRequestIssueCommentContribution", "Issue Comment"),
-]
-
 
 class CffManager:
+
+    CONTRIBUTION_CATEGORIES = [
+        ("GitHubPullRequestCommitContribution", "Commit"),
+        ("GitHubPullRequestCommentContribution", "Pull Request Comment"),
+        ("GitHubPullRequestReviewContribution", "Review"),
+        ("GitHubPullRequestIssueContribution", "Issue"),
+        ("GitHubPullRequestIssueCommentContribution", "Issue Comment"),
+    ]
 
     def __init__(
         self, cff_path: Path, github_manager: GithubManager, orcid_manager: OrcidManager
@@ -91,7 +91,7 @@ class CffManager:
         )
 
         first_contribution_category: tuple[str, str] | None = None
-        for contribution_category in CONTRIBUTION_CATEGORIES:
+        for contribution_category in self.CONTRIBUTION_CATEGORIES:
             if (
                 contribution_category[0] in contributions_by_category
                 and len(contributions_by_category[contribution_category[0]]) > 0
@@ -111,7 +111,12 @@ class CffManager:
                     f"[{first_contribution_category[1]}]({first_contribution})"
                 )
         else:
-            raise Exception("No contribution found for the contributor.")
+            raise ValueError(
+                f"No contribution found for the contributor: {contributor.to_dict()}. "
+                f"Categories checked: {[c[0] for c in self.CONTRIBUTION_CATEGORIES]}. "
+                f"Categories present: {list(contributions_by_category.keys())}."
+            )
+
         return contribution_warning_postfix
 
     def create_cff_author_contributor_from_github_contributor(
