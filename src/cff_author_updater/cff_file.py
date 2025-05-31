@@ -27,18 +27,13 @@ class CffFile:
 
     def __init__(self, cff_path: Path):
         self.cff_path = cff_path
-        self.load()
-
-    def load(self, cff_path: Path | None = None):
-        if cff_path is None:
-            cff_path = self.cff_path
 
         # Check if the CFF file exists
-        if not cff_path.exists():
-            raise ValueError(f"{cff_path} not found.")
+        if not self.cff_path.exists():
+            raise ValueError(f"{self.cff_path} not found.")
 
         # create a dictionary from the CFF file
-        with open(cff_path, "r") as f:
+        with open(self.cff_path, "r") as f:
             self.original_cff = yaml.load(f, Loader=OrderedYamlLoader)
 
         self.cff = deepcopy(self.original_cff)
