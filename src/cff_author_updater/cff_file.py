@@ -30,40 +30,51 @@ class CffFile:
 
         self.cff = deepcopy(self.original_cff)
 
-    @property
-    def cff(self):
-        return self._cff
+    def save(self):
 
-    @cff.setter
-    def cff(self, cff: dict):
+        # save to a temp file first to make sure it works
         import tempfile
 
         is_valid_cff: bool = False
         with tempfile.NamedTemporaryFile(mode="w+", delete=True) as temp_file:
-            yaml.dump(cff, temp_file, sort_keys=False)
-            is_valid_cff = self.validate(cff_path=Path(temp_file.name))
+            yaml.dump(self.cff, temp_file, sort_keys=False)
+            is_valid_cff, validation_errors = self.validate(
+                cff_path=Path(temp_file.name)
+            )
 
         if not is_valid_cff:
-            raise ValueError(f"Invalid CFF dictionary {cff}")
+            error_message = (
+                f"Invalid CFF dictionary before saving {self.cff}\n"
+                + "\n".join(f"[cffconvert] {line}" for line in validation_errors)
+            )
+            raise ValueError(error_message)
 
-        self._cff = cff
-
-    def save(self):
+        # now save to the original CFF file
         with open(self.cff_path, "w") as f:
             yaml.dump(self.cff, f, sort_keys=False)
 
-        self.validate()
+        is_valid_cff, validation_errors = self.validate()
+        if not is_valid_cff:
+            error_message = (
+                f"Invalid CFF dictionary after saving {self.cff}\n"
+                + "\n".join(f"[cffconvert] {line}" for line in validation_errors)
+            )
+            raise ValueError(error_message)
 
-    def validate(self, cff_path: Path | None = None):
+    def validate(self, cff_path: Path | None = None) -> tuple[bool, list[str]]:
         if cff_path is None:
             cff_path = self.cff_path
 
         import subprocess
 
         try:
-            subprocess.run(
-                ["cffconvert", "--validate", "--infile", cff_path], check=True
+            result = subprocess.run(
+                ["cffconvert", "--validate", "--infile", cff_path],
+                check=True,
+                capture_output=True,
+                text=True,
             )
-            return True
-        except subprocess.CalledProcessError:
-            return False
+            return True, []
+        except subprocess.CalledProcessError as e:
+            stderr_output = e.stderr.splitlines() if e.stderr else []
+            return False, stderr_output

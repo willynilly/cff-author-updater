@@ -57,6 +57,10 @@ inputs:
     description: Invalidate the pull request if there is a duplicate author in the CFF file
     type: boolean
     default: true
+  invalid_cff_invalidates_pr:
+    description: Invalidate the pull request if cffconvert fails to validate the CFF file
+    type: boolean
+    default: true
   bot_blacklist:
     description: 'Comma-separated list of bot usernames to ignore'
     required: false
@@ -101,5 +105,6 @@ runs:
         AUTHORSHIP_FOR_PR_COMMENTS: ${{ inputs.authorship_for_pr_comments }}
         MISSING_AUTHOR_INVALIDATES_PR: ${{ inputs.missing_author_invalidates_pr }}
         DUPLICATE_AUTHOR_INVALIDATES_PR: ${{ inputs.duplicate_author_invalidates_pr }}
+        INVALID_CFF_INVALIDATES_PR: ${{ inputs.invalid_cff_invalidates_pr }}
         BOT_BLACKLIST: ${{ inputs.bot_blacklist }}
         GITHUB_EVENT_PATH: ${{ github.event_path }}

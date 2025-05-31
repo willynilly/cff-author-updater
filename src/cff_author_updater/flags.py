@@ -34,6 +34,10 @@ class Flags:
             "DUPLICATE_AUTHOR_INVALIDATES_PR", "true"
         ).casefold()
         == "true",
+        "invalid_cff_invalidates_pr": os.environ.get(
+            "INVALID_CFF_INVALIDATES_PR", "true"
+        ).casefold()
+        == "true",
     }
 
     @classmethod

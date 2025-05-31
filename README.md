@@ -62,6 +62,7 @@ jobs:
           authorship_for_pr_comments: true
           missing_author_invalidates_pr: true
           duplicate_author_invalidates_pr: true
+          invalid_cff_invalidates_pr: true
           bot_blacklist: github-actions[bot]
 ```
 
@@ -83,7 +84,19 @@ jobs:
 | `authorship_for_pr_comments`  | Include users who commented directly on the PR as authors                      | ❌ No    | `true`                 |
 | `missing_author_invalidates_pr`  | Invalidate the pull request if a new author is missing from the CFF file                       | ❌ No    | `true`                 |
 | `duplicate_author_invalidates_pr`  | Invalidate the pull request if there is a duplicate author in the CFF file                       | ❌ No    | `true`                 |
+| `invalid_cff_invalidates_pr`  | Invalidate the pull request if cffconvert fails to validate the CFF file                       | ❌ No    | `true`                 |
 | `bot_blacklist`              | Comma-separated GitHub usernames to exclude from authorship      | ❌ No    | `github-actions[bot]`  |
+
+**Note:** When `invalid_cff_invalidates_pr` is enabled, the pull request will be invalidated (workflow will fail) if `cffconvert` reports any validation errors on the CFF file.  
+Typical reasons for `cffconvert` validation failure include:
+- Duplicate authors (e.g. same ORCID, same author block)
+- Invalid or missing required fields (violating Citation File Format spec)
+- Incorrect field formats (e.g. malformed ORCID URL)
+
+Any `cffconvert` errors will also appear in the pull request comment under the **Warnings** section.
+
+The `invalid_cff_invalidates_pr` flag enforces the official CFF format standard (as validated by `cffconvert`).  
+The `missing_author_invalidates_pr` and `duplicate_author_invalidates_pr` flags provide **additional semantic validation** beyond the CFF format. They use the **Deduplication Strategy** described below.
 
 ---
 

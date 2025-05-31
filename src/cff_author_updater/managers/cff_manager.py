@@ -284,7 +284,9 @@ class CffManager:
         repo_for_compare: str,
         contribution_manager: ContributionManager,
     ) -> tuple[
-        set[GitCommitContributor | GitHubContributor], set[CffAuthorContributor]
+        set[GitCommitContributor | GitHubContributor],
+        set[CffAuthorContributor],
+        list[str],
     ]:
         """
         Process contributors and update the CFF file.
@@ -392,7 +394,29 @@ class CffManager:
             cff["authors"].append(new_cff_author.cff_author_data)
 
         self.cff_file.cff = cff
-        self.cff_file.save()
+        try:
+            self.cff_file.save()
+            is_valid_cff_file = True
+            cffconvert_validation_errors = []
+        except ValueError as e:
+            is_valid_cff_file = False
+            cffconvert_validation_errors = str(e).splitlines()
+
+        # Add cffconvert errors as warnings
+        for line in cffconvert_validation_errors:
+            warnings.append(f"[cffconvert] {line}")
+
+        cffconvert_duplicate_errors = [
+            line for line in cffconvert_validation_errors if "is a duplicate of" in line
+        ]
+
+        if cffconvert_duplicate_errors:
+            warnings.append(
+                "[cffconvert] detected duplicate authors that will cause validation to fail."
+            )
+            warnings.extend(
+                f"[cffconvert] {line}" for line in cffconvert_duplicate_errors
+            )
 
         with open(output_file, "a") as f:
             f.write("new_authors<<EOF\n")
@@ -431,7 +455,7 @@ class CffManager:
                 ),
             )
 
-        return missing_authors, duplicate_authors
+        return missing_authors, duplicate_authors, cffconvert_validation_errors
 
     def create_json_for_contribution_manager(
         self, contribution_manager: ContributionManager

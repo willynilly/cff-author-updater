@@ -68,13 +68,15 @@ def main():
         )
         contribution_manager.merge(metadata_contribution_manager)
 
-        missing_authors, duplicate_authors = cff_manager.update_cff(
-            token=token,
-            repo=repo,
-            pr_number=pr_number,
-            output_file=output_file,
-            repo_for_compare=repo_for_compare,
-            contribution_manager=contribution_manager,
+        missing_authors, duplicate_authors, cffconvert_validation_errors = (
+            cff_manager.update_cff(
+                token=token,
+                repo=repo,
+                pr_number=pr_number,
+                output_file=output_file,
+                repo_for_compare=repo_for_compare,
+                contribution_manager=contribution_manager,
+            )
         )
 
         new_authors_count = len(contribution_manager.contributors)
@@ -87,6 +89,19 @@ def main():
                     f"Pull request is invalidated because a new author is missing from the `{cff_path}` file."
                 )
                 sys.exit(1)
+        if Flags.has("duplicate_author_invalidates_pr") and len(duplicate_authors):
+            print(
+                f"Pull request is invalidated because there is a duplicate author in the `{cff_path}` file."
+            )
+            sys.exit(1)
+        if Flags.has("invalid_cff_invalidates_pr") and len(
+            cffconvert_validation_errors
+        ):
+            print(
+                f"Pull request is invalidated because the `{cff_path}` file is not valid CFF."
+            )
+            print("\n".join(cffconvert_validation_errors))
+            sys.exit(1)
 
 
 if __name__ == "__main__":
