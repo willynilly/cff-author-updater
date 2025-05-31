@@ -350,9 +350,11 @@ class CffManager:
 
         cffconvert_validation_errors: list[str] = []
 
+        is_valid_cff: bool = True
         try:
             self.cff_file = CffFile(cff_path=self.cff_path, validate=True)
         except CffFileValidationError as e:
+            is_valid_cff = False
             self.cff_file = CffFile(cff_path=self.cff_path, validate=False)
             self._process_cff_validation_errors(cff_file_validation_error=e)
             cffconvert_validation_errors += e.cffconvert_validation_errors
@@ -432,11 +434,13 @@ class CffManager:
             cff["authors"].append(new_cff_author.cff_author_data)
 
         self.cff_file.cff = cff
-        try:
-            self.cff_file.save()
-        except CffFileValidationError as e:
-            self._process_cff_validation_errors(cff_file_validation_error=e)
-            cffconvert_validation_errors += e.cffconvert_validation_errors
+        if is_valid_cff:
+            try:
+                self.cff_file.save()
+            except CffFileValidationError as e:
+                is_valid_cff = False
+                self._process_cff_validation_errors(cff_file_validation_error=e)
+                cffconvert_validation_errors += e.cffconvert_validation_errors
 
         with open(output_file, "a") as f:
             f.write("new_authors<<EOF\n")
