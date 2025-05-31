@@ -176,13 +176,15 @@ class CffAuthorReview:
 """
 
         if error_logs:
-            body += "\n\n**🚨 Errors:**\n" + "\n".join(error_logs)
+            body += "\n\n**🚨 Errors:**\n" + "\n".join(["- " + e for e in error_logs])
 
         if warning_logs:
-            body += "\n\n**⚠️ Warnings:**\n" + "\n".join(warning_logs)
+            body += "\n\n**⚠️ Warnings:**\n" + "\n".join(
+                ["- " + w for w in warning_logs]
+            )
 
         if info_logs:
-            body += "\n\n**ℹ️ Info:**\n" + "\n".join(info_logs)
+            body += "\n\n**ℹ️ Info:**\n" + "\n".join(["- " + i for i in info_logs])
 
         body += f"""
 
