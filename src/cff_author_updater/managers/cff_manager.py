@@ -49,11 +49,11 @@ class CffManager:
             str: Contribution warning prefix.
         """
         contribution_categories = [
-            ("commits", "Commit"),
-            ("pr_comments", "Pull Request Comment"),
-            ("reviews", "Review"),
-            ("issues", "Issue"),
-            ("issue_comments", "Issue Comment"),
+            ("GitHubPullRequestCommitContribution", "Commit"),
+            ("GitHubPullRequestCommentContribution", "Pull Request Comment"),
+            ("GitHubPullRequestReviewContribution", "Review"),
+            ("GitHubPullRequestIssueContribution", "Issue"),
+            ("GitHubPullRequestIssueCommentContribution", "Issue Comment"),
         ]
 
         contribution_warning_postfix: str = ""
