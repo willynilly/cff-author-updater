@@ -277,7 +277,6 @@ class CffManager:
 
     def update_cff(
         self,
-        # contributors: set[GitCommitContributor | GitHubContributor],
         token: str,
         repo: str,
         pr_number: str,
@@ -290,13 +289,12 @@ class CffManager:
         """
         Process contributors and update the CFF file.
         Args:
-            contributors (set): Set of contributors.
             token (str): GitHub token.
             repo (str): Repository name.
             pr_number (str): Pull request number.
             output_file (str): Output file path.
             repo_for_compare (str): Repository for comparison.
-            contribution_details (dict): Contribution details.
+            contribution_manager (ContributionManager): Contribution manager.
         """
         if not isinstance(contribution_manager, ContributionManager):
             raise ValueError("Contribution manager is not provided.")
