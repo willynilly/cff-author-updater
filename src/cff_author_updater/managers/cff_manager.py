@@ -22,6 +22,14 @@ from cff_author_updater.managers.contribution_manager import ContributionManager
 from cff_author_updater.managers.github_manager import GithubManager
 from cff_author_updater.managers.orcid_manager import OrcidManager
 
+CONTRIBUTION_CATEGORIES = [
+    ("GitHubPullRequestCommitContribution", "Commit"),
+    ("GitHubPullRequestCommentContribution", "Pull Request Comment"),
+    ("GitHubPullRequestReviewContribution", "Review"),
+    ("GitHubPullRequestIssueContribution", "Issue"),
+    ("GitHubPullRequestIssueCommentContribution", "Issue Comment"),
+]
+
 
 class CffManager:
 
@@ -48,13 +56,6 @@ class CffManager:
         Returns:
             str: Contribution warning prefix.
         """
-        contribution_categories = [
-            ("GitHubPullRequestCommitContribution", "Commit"),
-            ("GitHubPullRequestCommentContribution", "Pull Request Comment"),
-            ("GitHubPullRequestReviewContribution", "Review"),
-            ("GitHubPullRequestIssueContribution", "Issue"),
-            ("GitHubPullRequestIssueCommentContribution", "Issue Comment"),
-        ]
 
         contribution_warning_postfix: str = ""
         if isinstance(contributor, GitCommitContributor):
@@ -90,7 +91,7 @@ class CffManager:
         )
 
         first_contribution_category: tuple[str, str] | None = None
-        for contribution_category in contribution_categories:
+        for contribution_category in CONTRIBUTION_CATEGORIES:
             if (
                 contribution_category[0] in contributions_by_category
                 and len(contributions_by_category[contribution_category[0]]) > 0
