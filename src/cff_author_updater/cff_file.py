@@ -10,16 +10,20 @@ class CffFileValidationError(ValueError):
     def __init__(self, message: str, validation_errors: list[str]):
         super().__init__(message)
 
+        CFFCONVERT_VALIDATION_DUPLICATE_AUTHOR_TEXT: str = (
+            f"Failed validating 'uniqueItems' in schema['properties']['authors']"
+        )
+
         self.cffconvert_validation_errors = validation_errors
         self.cffconvert_validation_duplicate_errors = [
             error
             for error in self.cffconvert_validation_errors
-            if "is a duplicate of" in error
+            if CFFCONVERT_VALIDATION_DUPLICATE_AUTHOR_TEXT in error
         ]
         self.cffconvert_validation_other_errors = [
             error
             for error in self.cffconvert_validation_errors
-            if "is a duplicate of" not in error
+            if CFFCONVERT_VALIDATION_DUPLICATE_AUTHOR_TEXT not in error
         ]
 
 
