@@ -292,23 +292,23 @@ class CffManager:
         Args:
             cff_file_validation_error (CffFileValidationError): CFF file validation error.
         """
-        for line in cff_file_validation_error.cffconvert_validation_duplicate_errors:
+        for error in cff_file_validation_error.cffconvert_validation_duplicate_errors:
             if Flags.has("duplicate_author_invalidates_pr") or Flags.has(
                 "invalid_cff_invalidates_pr"
             ):
                 logger.error(
-                    f"[cffconvert] Invalid CFF because duplicate author: {line}"
+                    f"[cffconvert] Invalid CFF because duplicate author: {error}"
                 )
             else:
                 logger.warning(
-                    f"[cffconvert] Invalid CFF because duplicate author: {line}"
+                    f"[cffconvert] Invalid CFF because duplicate author: {error}"
                 )
 
-        for line in cff_file_validation_error.cffconvert_validation_other_errors:
+        for error in cff_file_validation_error.cffconvert_validation_other_errors:
             if Flags.has("invalid_cff_invalidates_pr"):
-                logger.error(f"[cffconvert] Invalid CFF: {line}")
+                logger.error(f"[cffconvert] Invalid CFF: {error}")
             else:
-                logger.warning(f"[cffconvert] Invalid CFF: {line}")
+                logger.warning(f"[cffconvert] Invalid CFF: {error}")
 
     def update_cff(
         self,

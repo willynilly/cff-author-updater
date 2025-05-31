@@ -12,14 +12,14 @@ class CffFileValidationError(ValueError):
 
         self.cffconvert_validation_errors = validation_errors
         self.cffconvert_validation_duplicate_errors = [
-            line
-            for line in self.cffconvert_validation_errors
-            if "is a duplicate of" in line
+            error
+            for error in self.cffconvert_validation_errors
+            if "is a duplicate of" in error
         ]
         self.cffconvert_validation_other_errors = [
-            line
-            for line in self.cffconvert_validation_errors
-            if "is a duplicate of" not in line
+            error
+            for error in self.cffconvert_validation_errors
+            if "is a duplicate of" not in error
         ]
 
 
@@ -44,7 +44,7 @@ class CffFile:
             if not is_valid_cff:
                 error_message = (
                     f"Invalid CFF file while loading {self.cff}\n"
-                    + "\n".join(f"[cffconvert] {line}" for line in validation_errors)
+                    + "\n".join(f"[cffconvert] {error}" for error in validation_errors)
                 )
                 raise CffFileValidationError(
                     message=error_message, validation_errors=validation_errors
@@ -65,7 +65,7 @@ class CffFile:
         if not is_valid_cff:
             error_message = (
                 f"Invalid CFF dictionary before saving {self.cff}\n"
-                + "\n".join(f"[cffconvert] {line}" for line in validation_errors)
+                + "\n".join(f"[cffconvert] {error}" for error in validation_errors)
             )
             raise CffFileValidationError(
                 message=error_message, validation_errors=validation_errors
@@ -79,7 +79,7 @@ class CffFile:
         if not is_valid_cff:
             error_message = (
                 f"Invalid CFF dictionary after saving {self.cff}\n"
-                + "\n".join(f"[cffconvert] {line}" for line in validation_errors)
+                + "\n".join(f"[cffconvert] {error}" for error in validation_errors)
             )
             raise CffFileValidationError(
                 message=error_message, validation_errors=validation_errors
@@ -100,5 +100,5 @@ class CffFile:
             )
             return True, []
         except subprocess.CalledProcessError as e:
-            stderr_output = e.stderr.splitlines() if e.stderr else []
+            stderr_output = [e.stderr] if e.stderr else []
             return False, stderr_output
