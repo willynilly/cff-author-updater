@@ -351,8 +351,9 @@ class CffManager:
         cffconvert_validation_errors: list[str] = []
 
         try:
-            self.cff_file = CffFile(cff_path=self.cff_path)
+            self.cff_file = CffFile(cff_path=self.cff_path, validate=True)
         except CffFileValidationError as e:
+            self.cff_file = CffFile(cff_path=self.cff_path, validate=False)
             self._process_cff_validation_errors(cff_file_validation_error=e)
             cffconvert_validation_errors += e.cffconvert_validation_errors
 

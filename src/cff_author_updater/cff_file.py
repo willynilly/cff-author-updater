@@ -25,7 +25,7 @@ class CffFileValidationError(ValueError):
 
 class CffFile:
 
-    def __init__(self, cff_path: Path):
+    def __init__(self, cff_path: Path, validate: bool = True):
         self.cff_path = cff_path
 
         # Check if the CFF file exists
@@ -38,15 +38,17 @@ class CffFile:
 
         self.cff = deepcopy(self.original_cff)
 
-        # make sure the CFF file is valid
-        is_valid_cff, validation_errors = self.validate()
-        if not is_valid_cff:
-            error_message = f"Invalid CFF file while loading {self.cff}\n" + "\n".join(
-                f"[cffconvert] {line}" for line in validation_errors
-            )
-            raise CffFileValidationError(
-                message=error_message, validation_errors=validation_errors
-            )
+        if validate:
+            # make sure the CFF file is valid
+            is_valid_cff, validation_errors = self.validate()
+            if not is_valid_cff:
+                error_message = (
+                    f"Invalid CFF file while loading {self.cff}\n"
+                    + "\n".join(f"[cffconvert] {line}" for line in validation_errors)
+                )
+                raise CffFileValidationError(
+                    message=error_message, validation_errors=validation_errors
+                )
 
     def save(self):
 
