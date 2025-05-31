@@ -5,6 +5,7 @@ import re
 import requests
 import yaml
 
+from cff_author_updater.cff_author_review import CffAuthorReview
 from cff_author_updater.cff_file import CffFile
 from cff_author_updater.contributions.github_pull_request_comment_contribution import (
     GitHubPullRequestCommentContribution,
@@ -26,6 +27,7 @@ from cff_author_updater.contributors.github_contributor import (
     GitHubContributor,
 )
 from cff_author_updater.flags import Flags
+from cff_author_updater.logging_config import get_log_collector
 from cff_author_updater.managers.contribution_manager import ContributionManager
 
 UNKNOWN_CONTRIBUTOR_KEY = ("unknown", None)
@@ -248,128 +250,8 @@ class GithubManager:
         return cff_data.get("version", "")
 
     def post_pull_request_comment(
-        self,
-        cff_file: CffFile,
-        warnings: list,
-        logs: list,
-        token: str,
-        repo: str,
-        pr_number: str,
-        contribution_manager: ContributionManager,
-        repo_for_compare: str,
-        missing_authors: set,
-        missing_author_invalidates_pr: bool,
-        duplicate_authors: set,
-        duplicate_author_invalidates_pr: bool,
+        self, token: str, repo: str, pr_number: str, comment_body: str
     ):
-        cff_path = cff_file.cff_path
-        cff = cff_file.cff
-        original_cff = cff_file.original_cff
-
-        marker: str = "<!-- contributor-check-comment -->"
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
-
-        commit_sha = os.environ.get("GITHUB_SHA", "")
-        commit_sha_short = commit_sha[:7]
-        commit_url = f"https://github.com/{repo}/commit/{commit_sha}"
-
-        comment_contributions = "\n**New Authors & Contributions:**\n"
-
-        new_authors = [
-            contributor
-            for contributor in contribution_manager.contributors_sorted_by_first_contribution
-            if contributor in contribution_manager._contributions_by_contributor
-        ]
-
-        if new_authors:
-            for contributor in new_authors:
-                if contributor in missing_authors:
-                    missing_author_message = f" (Missing from `{cff_path}`)"
-                else:
-                    missing_author_message = ""
-
-                if isinstance(contributor, GitHubContributor):
-                    comment_contributions += f"\n#### @{contributor.github_username}{missing_author_message}\n"
-                elif isinstance(contributor, GitCommitContributor):
-                    name = contributor.git_name
-                    email = contributor.git_email
-                    if email:
-                        comment_contributions += (
-                            f"\n#### {email}{missing_author_message}\n"
-                        )
-                    else:
-                        comment_contributions += (
-                            f"\n#### {name}{missing_author_message}\n"
-                        )
-                else:
-                    raise Exception(
-                        "Invalid contributor: Must be GitHubContributor or GitCommitContributor."
-                    )
-
-                contributions_by_category = (
-                    contribution_manager.get_contribution_categories_for(contributor)
-                )
-                for category, contribution_list in contributions_by_category.items():
-                    comment_contributions += (
-                        f"- **{category.replace('_', ' ').title()}**\n"
-                    )
-                    for contribution in contribution_list:
-                        if isinstance(
-                            contribution, GitHubPullRequestCommitContribution
-                        ):
-                            comment_contributions += f"  - [`{contribution.id[:7]}`](https://github.com/{repo_for_compare}/commit/{contribution.id})\n"
-                        else:
-                            comment_contributions += f"  - [Link]({contribution.id})\n"
-        else:
-            comment_contributions += "\n**No new authors.**\n"
-
-        comment_body = f"""
-{marker}
-### CFF Author Updater ###
-
-{comment_contributions}
-"""
-        if missing_authors:
-            comment_body += f"""
-**Recommended `{cff_path}` file (updated with missing authors):**
-```yaml
-{yaml.dump(cff, sort_keys=False)}
-```
-"""
-            comment_body += (
-                f"***Important: This recommended `{cff_path}` file has not been changed yet on this pull request. "
-                f"It can be manually copied and committed to the repository. For Github users to be recognized, "
-                f"you must use their Github user profile URL as their `alias` in the {cff_path} file."
-            )
-            if missing_author_invalidates_pr:
-                comment_body += f" If the `{cff_path}` file is missing any new author, the pull request will remain invalid."
-            comment_body += f"***"
-        else:
-            comment_body += f"""
-**Current `{cff_path}` file contains all new authors.**
-```yaml
-{yaml.dump(original_cff, sort_keys=False)}
-```
-"""
-        if warnings:
-            comment_body += "\n\n**Warnings:**\n" + "\n".join(warnings)
-
-        if logs:
-            comment_body += f"""
-
-<details>
-<summary><strong>ORCID Match Details</strong></summary>
-
-{chr(10).join(logs)}
-
-</details>"""
-
-        comment_body += f"""
-
-_Last updated: {timestamp} UTC · Commit [`{commit_sha_short}`]({commit_url})_
-
-***Powered by [CFF Author Updater v{self.github_action_version}](https://github.com/willynilly/cff-author-updater)***
-"""
 
         headers = {
             "Authorization": f"token {token}",

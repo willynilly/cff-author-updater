@@ -71,10 +71,12 @@ outputs:
     description: New authors and qualifying contributions in JSON
   updated_cff:
     description: Full updated CFF content
-  warnings:
-    description: Contributors skipped or added without metadata
-  orcid_logs:
-    description: ORCID match attempt logs
+  error_logs:
+    description: Logs that contain errors which invalidate a pull request
+  warning_logs:
+    description: Logs that contain warnings which do not invalidate a pull request
+  info_logs:
+    description: Logs that contain information about the process
 
 runs:
   using: "composite"

@@ -1,3 +1,4 @@
+import logging
 import os
 import json
 from pathlib import Path
@@ -9,6 +10,14 @@ from cff_author_updater.managers.cff_manager import CffManager
 from cff_author_updater.managers.github_manager import GithubManager
 from cff_author_updater.managers.orcid_manager import OrcidManager
 from cff_author_updater.managers.contribution_manager import ContributionManager
+
+
+from cff_author_updater.logging_config import setup_logging, get_log_collector
+
+# Set up logging
+setup_logging()
+
+logger = logging.getLogger(__name__)
 
 
 def main():
@@ -81,26 +90,26 @@ def main():
 
         new_authors_count = len(contribution_manager.contributors)
         if new_authors_count > 0:
-            print(
+            logger.info(
                 f"The `{cff_path}` file has been updated with {new_authors_count} new authors."
             )
             if Flags.has("missing_author_invalidates_pr") and len(missing_authors):
-                print(
+                logger.error(
                     f"Pull request is invalidated because a new author is missing from the `{cff_path}` file."
                 )
                 sys.exit(1)
         if Flags.has("duplicate_author_invalidates_pr") and len(duplicate_authors):
-            print(
+            logger.error(
                 f"Pull request is invalidated because there is a duplicate author in the `{cff_path}` file."
             )
             sys.exit(1)
         if Flags.has("invalid_cff_invalidates_pr") and len(
             cffconvert_validation_errors
         ):
-            print(
-                f"Pull request is invalidated because the `{cff_path}` file is not valid CFF."
+            logger.error(
+                f"Pull request is invalidated because the `{cff_path}` file is not valid CFF.\n"
+                + "\n".join(cffconvert_validation_errors)
             )
-            print("\n".join(cffconvert_validation_errors))
             sys.exit(1)
 
 

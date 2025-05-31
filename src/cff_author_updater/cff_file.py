@@ -6,6 +6,23 @@ import yaml
 from cff_author_updater.ordered_yaml_loader import OrderedYamlLoader
 
 
+class CffFileValidationError(ValueError):
+    def __init__(self, message: str, validation_errors: list[str]):
+        super().__init__(message)
+
+        self.cffconvert_validation_errors = validation_errors
+        self.cffconvert_validation_duplicate_errors = [
+            line
+            for line in self.cffconvert_validation_errors
+            if "is a duplicate of" in line
+        ]
+        self.cffconvert_validation_other_errors = [
+            line
+            for line in self.cffconvert_validation_errors
+            if "is a duplicate of" not in line
+        ]
+
+
 class CffFile:
 
     def __init__(self, cff_path: Path):
@@ -20,15 +37,21 @@ class CffFile:
         if not cff_path.exists():
             raise ValueError(f"{cff_path} not found.")
 
-        # make sure the CFF file is valid
-        if not self.validate():
-            raise ValueError(f"Validation failed for input CFF file: {cff_path}")
-
         # create a dictionary from the CFF file
         with open(cff_path, "r") as f:
             self.original_cff = yaml.load(f, Loader=OrderedYamlLoader)
 
         self.cff = deepcopy(self.original_cff)
+
+        # make sure the CFF file is valid
+        is_valid_cff, validation_errors = self.validate()
+        if not is_valid_cff:
+            error_message = f"Invalid CFF file while loading {self.cff}\n" + "\n".join(
+                f"[cffconvert] {line}" for line in validation_errors
+            )
+            raise CffFileValidationError(
+                message=error_message, validation_errors=validation_errors
+            )
 
     def save(self):
 
@@ -47,7 +70,9 @@ class CffFile:
                 f"Invalid CFF dictionary before saving {self.cff}\n"
                 + "\n".join(f"[cffconvert] {line}" for line in validation_errors)
             )
-            raise ValueError(error_message)
+            raise CffFileValidationError(
+                message=error_message, validation_errors=validation_errors
+            )
 
         # now save to the original CFF file
         with open(self.cff_path, "w") as f:
@@ -59,7 +84,9 @@ class CffFile:
                 f"Invalid CFF dictionary after saving {self.cff}\n"
                 + "\n".join(f"[cffconvert] {line}" for line in validation_errors)
             )
-            raise ValueError(error_message)
+            raise CffFileValidationError(
+                message=error_message, validation_errors=validation_errors
+            )
 
     def validate(self, cff_path: Path | None = None) -> tuple[bool, list[str]]:
         if cff_path is None:

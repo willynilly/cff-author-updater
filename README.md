@@ -106,8 +106,9 @@ The `missing_author_invalidates_pr` and `duplicate_author_invalidates_pr` flags 
 |----------------|--------------------------------------------------|
 | `new_authors`  | New authors and qualifying contributions in JSON |
 | `updated_cff`  | Full content of the updated CFF file             |
-| `warnings`     | Skipped or incomplete author entries             |
-| `orcid_logs`   | Logs of ORCID match attempts                     |
+| `error_logs`     | Logs that contain errors which invalidate a pull request             |
+| `warning_logs`     | Logs that contain warnings which do not invalidate a pull request             |
+| `info_logs`   | Logs that contain information about the process                     |
 
 ---
 

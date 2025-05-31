@@ -1,10 +1,12 @@
 import copy
 import json
+import logging
 from pathlib import Path
 import requests
 import yaml
 
-from cff_author_updater.cff_file import CffFile
+from cff_author_updater.cff_author_review import CffAuthorReview
+from cff_author_updater.cff_file import CffFile, CffFileValidationError
 from cff_author_updater.contributions.contribution import Contribution
 from cff_author_updater.contributions.github_pull_request_commit_contribution import (
     GitHubPullRequestCommitContribution,
@@ -15,12 +17,14 @@ from cff_author_updater.contributors.git_commit_contributor import GitCommitCont
 from cff_author_updater.contributors.github_contributor import (
     GitHubContributor,
     parse_github_username_from_github_profile_url,
-    is_github_user_profile_url,
 )
 from cff_author_updater.flags import Flags
+from cff_author_updater.logging_config import get_log_collector
 from cff_author_updater.managers.contribution_manager import ContributionManager
 from cff_author_updater.managers.github_manager import GithubManager
 from cff_author_updater.managers.orcid_manager import OrcidManager
+
+logger = logging.getLogger(__name__)
 
 
 class CffManager:
@@ -39,7 +43,6 @@ class CffManager:
         self.github_manager = github_manager
         self.orcid_manager = orcid_manager
         self.cff_path = cff_path
-        self.cff_file = CffFile(cff_path=cff_path)
 
     def get_contribution_warning_postfix(
         self,
@@ -123,8 +126,6 @@ class CffManager:
         self,
         github_contributor: GitHubContributor,
         token: str,
-        warnings: list[str],
-        logs: list[str],
         contribution_warning_postfix: str,
     ) -> CffAuthorContributor | None:
         contributor = github_contributor
@@ -138,7 +139,7 @@ class CffManager:
 
         # skip the user if the user is not found
         if resp.status_code != 200:
-            warnings.append(
+            logger.warning(
                 f"- @{contributor.github_username}: Unable to fetch user data from GitHub API. Status code: {resp.status_code}{contribution_warning_postfix}"
             )
             return None
@@ -164,7 +165,7 @@ class CffManager:
             else:
                 a["name"] = full_name
                 a["alias"] = user_profile_url
-                warnings.append(
+                logger.info(
                     f"- @{contributor.github_username}: Only one name part found, treated as entity for deduplication consistency.{contribution_warning_postfix}"
                 )
                 return CffAuthorContributor(cff_author_data=a)
@@ -174,24 +175,22 @@ class CffManager:
             orcid = self.orcid_manager.extract_orcid(text=user.get("bio"))
             if not orcid and full_name:
                 orcid = self.orcid_manager.search_orcid(
-                    full_name=full_name, email=user.get("email"), logs=logs
+                    full_name=full_name, email=user.get("email")
                 )
             if orcid and self.orcid_manager.validate_orcid(orcid=orcid):
                 a["orcid"] = f"https://orcid.org/{orcid}"
             elif orcid:
-                warnings.append(
+                logger.warning(
                     f"- @{contributor.github_username}: ORCID `{orcid}` is invalid or unreachable."
                 )
             else:
-                warnings.append(f"- @{contributor.github_username}: No ORCID found.")
+                logger.warning(f"- @{contributor.github_username}: No ORCID found.")
 
         return CffAuthorContributor(cff_author_data=a)
 
     def create_cff_author_contributor_from_git_commit_contributor(
         self,
         git_commit_contributor: GitCommitContributor,
-        warnings: list[str],
-        logs: list[str],
         contribution_warning_postfix: str,
     ) -> CffAuthorContributor | None:
         contributor = git_commit_contributor
@@ -205,25 +204,25 @@ class CffManager:
             new_cff_author_dict["family-names"] = name_parts[1]
             if email:
                 new_cff_author_dict["email"] = email
-            orcid = self.orcid_manager.search_orcid(name, email, logs)
+            orcid = self.orcid_manager.search_orcid(name, email)
             if orcid and self.orcid_manager.validate_orcid(orcid):
                 new_cff_author_dict["orcid"] = f"https://orcid.org/{orcid}"
             elif orcid:
-                warnings.append(
+                logger.warning(
                     f"- `{name}`: ORCID `{orcid}` is invalid or unreachable."
                 )
             else:
-                warnings.append(f"- `{name}`: No ORCID found.")
+                logger.warning(f"- `{name}`: No ORCID found.")
         else:
             new_cff_author_dict["name"] = name
             if email:
                 new_cff_author_dict["email"] = email
-            warnings.append(
+            logger.info(
                 f"- `{name}`: Only one name part found, treated as entity for deduplication consistency.{contribution_warning_postfix}"
             )
         return CffAuthorContributor(cff_author_data=new_cff_author_dict)
 
-    def create_identifier_of_cff_author_for_warning(
+    def create_identifier_of_cff_author_for_logger(
         self, cff_author: CffAuthorContributor
     ):
         a = cff_author.cff_author_data
@@ -251,7 +250,7 @@ class CffManager:
             )
 
     def validate_old_cff_authors_are_unique(
-        self, cff: dict, warnings: list[str]
+        self, cff: dict
     ) -> set[CffAuthorContributor]:
         # create warning messages if old authors are not unique
 
@@ -263,14 +262,14 @@ class CffManager:
             for cff_author_data in cff["authors"]
         ]
         for i, author_a in enumerate(old_authors):
-            author_a_identifier = self.create_identifier_of_cff_author_for_warning(
+            author_a_identifier = self.create_identifier_of_cff_author_for_logger(
                 cff_author=author_a
             )
             for j in range(i + 1, len(old_authors)):
                 author_b = old_authors[j]
                 if author_a.is_same_author(cff_author=author_b):
                     author_b_identifier = (
-                        self.create_identifier_of_cff_author_for_warning(
+                        self.create_identifier_of_cff_author_for_logger(
                             cff_author=author_b
                         )
                     )
@@ -278,8 +277,38 @@ class CffManager:
                     duplication_message: str = (
                         f"The original CFF file has these duplicate authors: {author_a_identifier} and {author_b_identifier}"
                     )
-                    warnings.append(duplication_message)
+                    if Flags.has("duplicate_author_invalidates_pr"):
+                        logger.error(duplication_message)
+                    else:
+                        logger.warning(duplication_message)
+
         return duplicate_authors
+
+    def _process_cff_validation_errors(
+        self, cff_file_validation_error: CffFileValidationError
+    ) -> None:
+        """
+        Process CFF validation errors and log them.
+        Args:
+            cff_file_validation_error (CffFileValidationError): CFF file validation error.
+        """
+        for line in cff_file_validation_error.cffconvert_validation_duplicate_errors:
+            if Flags.has("duplicate_author_invalidates_pr") or Flags.has(
+                "invalid_cff_invalidates_pr"
+            ):
+                logger.error(
+                    f"[cffconvert] Invalid CFF because duplicate author: {line}"
+                )
+            else:
+                logger.warning(
+                    f"[cffconvert] Invalid CFF because duplicate author: {line}"
+                )
+
+        for line in cff_file_validation_error.cffconvert_validation_other_errors:
+            if Flags.has("invalid_cff_invalidates_pr"):
+                logger.error(f"[cffconvert] Invalid CFF: {line}")
+            else:
+                logger.warning(f"[cffconvert] Invalid CFF: {line}")
 
     def update_cff(
         self,
@@ -319,17 +348,20 @@ class CffManager:
         if not output_file:
             raise ValueError("Output file path is not provided.")
 
+        cffconvert_validation_errors: list[str] = []
+
+        try:
+            self.cff_file = CffFile(cff_path=self.cff_path)
+        except CffFileValidationError as e:
+            self._process_cff_validation_errors(cff_file_validation_error=e)
+            cffconvert_validation_errors += e.cffconvert_validation_errors
+
         cff = copy.deepcopy(self.cff_file.cff)
 
         cff.setdefault("authors", [])
 
-        warnings: list = []
-        logs: list = []
-
         # validate old authors
-        duplicate_authors: set = self.validate_old_cff_authors_are_unique(
-            cff=cff, warnings=warnings
-        )
+        duplicate_authors: set = self.validate_old_cff_authors_are_unique(cff=cff)
 
         # update new authors
         already_in_cff_contributors: set[GitCommitContributor | GitHubContributor] = (
@@ -361,8 +393,6 @@ class CffManager:
                         github_contributor=contributor,
                         token=token,
                         contribution_warning_postfix=contribution_warning_postfix,
-                        warnings=warnings,
-                        logs=logs,
                     )
                 )
             elif isinstance(contributor, GitCommitContributor):
@@ -370,8 +400,6 @@ class CffManager:
                     self.create_cff_author_contributor_from_git_commit_contributor(
                         git_commit_contributor=contributor,
                         contribution_warning_postfix=contribution_warning_postfix,
-                        warnings=warnings,
-                        logs=logs,
                     )
                 )
             else:
@@ -388,13 +416,16 @@ class CffManager:
                     )
                     for existing_cff_author in cff["authors"]
                 ):
-                    identifier: str = self.create_identifier_of_cff_author_for_warning(
+                    identifier: str = self.create_identifier_of_cff_author_for_logger(
                         cff_author=new_cff_author
                     )
                     already_in_cff_contributors.add(contributor)
-                    warnings.append(
-                        f"- {identifier}: Already exists in CFF file or already added from another new contribution."
-                    )
+                    dup_msg = f"- {identifier}: Already exists in CFF file."
+                    if Flags.has("duplicate_author_invalidates_pr"):
+                        logger.error(dup_msg)
+                    else:
+                        logger.warning(dup_msg)
+
                     continue
 
             cff["authors"].append(new_cff_author.cff_author_data)
@@ -402,27 +433,9 @@ class CffManager:
         self.cff_file.cff = cff
         try:
             self.cff_file.save()
-            is_valid_cff_file = True
-            cffconvert_validation_errors = []
-        except ValueError as e:
-            is_valid_cff_file = False
-            cffconvert_validation_errors = str(e).splitlines()
-
-        # Add cffconvert errors as warnings
-        for line in cffconvert_validation_errors:
-            warnings.append(f"[cffconvert] {line}")
-
-        cffconvert_duplicate_errors = [
-            line for line in cffconvert_validation_errors if "is a duplicate of" in line
-        ]
-
-        if cffconvert_duplicate_errors:
-            warnings.append(
-                "[cffconvert] detected duplicate authors that will cause validation to fail."
-            )
-            warnings.extend(
-                f"[cffconvert] {line}" for line in cffconvert_duplicate_errors
-            )
+        except CffFileValidationError as e:
+            self._process_cff_validation_errors(cff_file_validation_error=e)
+            cffconvert_validation_errors += e.cffconvert_validation_errors
 
         with open(output_file, "a") as f:
             f.write("new_authors<<EOF\n")
@@ -435,20 +448,26 @@ class CffManager:
             f.write("updated_cff<<EOF\n")
             f.write(yaml.dump(cff, sort_keys=False))
             f.write("\nEOF\n")
-            if warnings:
-                f.write("warnings<<EOF\n" + "\n".join(warnings) + "\nEOF\n")
-            if logs:
-                f.write("orcid_logs<<EOF\n" + "\n".join(logs) + "\nEOF\n")
+            log_collector = get_log_collector()
+            error_logs = log_collector.get_error_logs()
+            warning_logs = log_collector.get_warning_logs()
+            info_logs = log_collector.get_info_logs()
+            if error_logs:
+                f.write("error_logs<<EOF\n" + "\n".join(error_logs) + "\nEOF\n")
+            if warning_logs:
+                f.write("warning_logs<<EOF\n" + "\n".join(warning_logs) + "\nEOF\n")
+            if info_logs:
+                f.write("info_logs<<EOF\n" + "\n".join(info_logs) + "\nEOF\n")
 
         missing_authors: set = contributors - already_in_cff_contributors
         if Flags.has("post_pr_comment") and pr_number:
-            self.github_manager.post_pull_request_comment(
+            github_action_version = self.github_manager.get_github_action_version()
+            cff_author_review: CffAuthorReview = CffAuthorReview(
                 cff_file=self.cff_file,
-                warnings=warnings,
-                logs=logs,
                 token=token,
                 repo=repo,
                 pr_number=pr_number,
+                github_action_version=github_action_version,
                 contribution_manager=contribution_manager,
                 repo_for_compare=repo_for_compare,
                 missing_authors=missing_authors,
@@ -459,6 +478,13 @@ class CffManager:
                 duplicate_author_invalidates_pr=Flags.has(
                     "duplicate_author_invalidates_pr"
                 ),
+            )
+
+            self.github_manager.post_pull_request_comment(
+                token=token,
+                repo=repo,
+                pr_number=pr_number,
+                comment_body=cff_author_review.get_review(),
             )
 
         return missing_authors, duplicate_authors, cffconvert_validation_errors
