@@ -1,10 +1,9 @@
 from cff_author_updater.contributions.contribution import Contribution
 from cff_author_updater.contributors.contributor import Contributor
-from pyee import EventEmitter
 from collections import defaultdict
 
 
-class ContributionManager(EventEmitter):
+class ContributionManager:
 
     def __init__(self):
         self._contributions: list[Contribution] = []
@@ -36,8 +35,6 @@ class ContributionManager(EventEmitter):
             self._contributors_by_contribution[contribution] = []
         if contributor not in self._contributors_by_contribution[contribution]:
             self._contributors_by_contribution[contribution].append(contributor)
-
-        self.emit("contribution_added", contribution, contributor)
 
     @property
     def contributors(self) -> list[Contributor]:
