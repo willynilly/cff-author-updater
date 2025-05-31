@@ -8,7 +8,7 @@ from cff_author_updater.flags import Flags
 from cff_author_updater.managers.cff_manager import CffManager
 from cff_author_updater.managers.github_manager import GithubManager
 from cff_author_updater.managers.orcid_manager import OrcidManager
-from cff_author_updater.utils import add_more_contribution_details
+from cff_author_updater.managers.contribution_manager import ContributionManager
 
 
 def main():
@@ -47,54 +47,40 @@ def main():
         cff_path=cff_path, orcid_manager=orcid_manager, github_manager=github_manager
     )
 
-    contributors: set = set()
-    contribution_details: dict = {}
+    contribution_manager = ContributionManager()
+
     if Flags.has("authorship_for_pr_commits"):
-        commit_contributors, more_contribution_details = (
-            github_manager.collect_commit_contributors(
-                token=token,
-                repo=repo_for_compare,
-                base=base_branch,
-                head=head_branch,
-                bot_blacklist=bot_blacklist,
-            )
+        commit_contribution_manager = github_manager.collect_commit_contributors(
+            token=token,
+            repo=repo_for_compare,
+            base=base_branch,
+            head=head_branch,
+            bot_blacklist=bot_blacklist,
         )
-        contributors = set(commit_contributors)
-        add_more_contribution_details(
-            contribution_details=contribution_details,
-            more_contribution_details=more_contribution_details,
-        )
+        contribution_manager.merge(commit_contribution_manager)
 
     if pr_number:
-
-        collected_contributors, more_contribution_details = (
-            github_manager.collect_metadata_contributors(
-                token=token,
-                repo=repo,
-                pr_number=pr_number,
-                bot_blacklist=bot_blacklist,
-            )
+        metadata_contribution_manager = github_manager.collect_metadata_contributors(
+            token=token,
+            repo=repo,
+            pr_number=pr_number,
+            bot_blacklist=bot_blacklist,
         )
+        contribution_manager.merge(metadata_contribution_manager)
 
-        contributors.update(collected_contributors)
-        add_more_contribution_details(
-            contribution_details=contribution_details,
-            more_contribution_details=more_contribution_details,
-        )
-
-        missing_authors = cff_manager.update_cff(
-            contributors=contributors,
+        missing_authors, duplicate_authors = cff_manager.update_cff(
             token=token,
             repo=repo,
             pr_number=pr_number,
             output_file=output_file,
             repo_for_compare=repo_for_compare,
-            contribution_details=contribution_details,
+            contribution_manager=contribution_manager,
         )
 
-        if len(contributors):
+        new_authors_count = len(contribution_manager.contributors)
+        if new_authors_count > 0:
             print(
-                f"The `{cff_path}` file has been updated with {len(contributors)} new authors."
+                f"The `{cff_path}` file has been updated with {new_authors_count} new authors."
             )
             if Flags.has("missing_author_invalidates_pr") and len(missing_authors):
                 print(

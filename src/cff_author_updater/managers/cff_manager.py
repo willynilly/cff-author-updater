@@ -5,6 +5,10 @@ import requests
 import yaml
 
 from cff_author_updater.cff_file import CffFile
+from cff_author_updater.contributions.contribution import Contribution
+from cff_author_updater.contributions.github_pull_request_commit_contribution import (
+    GitHubPullRequestCommitContribution,
+)
 from cff_author_updater.contributors.cff_author_contributor import CffAuthorContributor
 from cff_author_updater.contributors.contributor import Contributor
 from cff_author_updater.contributors.git_commit_contributor import GitCommitContributor
@@ -14,6 +18,7 @@ from cff_author_updater.contributors.github_contributor import (
     is_github_user_profile_url,
 )
 from cff_author_updater.flags import Flags
+from cff_author_updater.managers.contribution_manager import ContributionManager
 from cff_author_updater.managers.github_manager import GithubManager
 from cff_author_updater.managers.orcid_manager import OrcidManager
 
@@ -28,20 +33,20 @@ class CffManager:
         self.cff_path = cff_path
         self.cff_file = CffFile(cff_path=cff_path)
 
-    def get_contribution_note_for_warning(
+    def get_contribution_warning_postfix(
         self,
         contributor: GitCommitContributor | GitHubContributor,
-        contribution_details: dict,
+        contribution_manager: ContributionManager,
         repo_for_compare: str,
     ) -> str:
         """
-        Get contribution note for warning.
+        Get contribution warning prefix.
         Args:
             contributor (GitCommitContributor | GitHubContributor): The contributor.
-            contribution_details (dict): Contribution details.
+            contribution_manager (ContributionManager): Contribution manager.
             repo_for_compare (str): Repository for comparison
         Returns:
-            str: Contribution note.
+            str: Contribution warning prefix.
         """
         contribution_categories = [
             ("commits", "Commit"),
@@ -51,16 +56,18 @@ class CffManager:
             ("issue_comments", "Issue Comment"),
         ]
 
-        contribution_note: str = ""
+        contribution_warning_postfix: str = ""
         if isinstance(contributor, GitCommitContributor):
             contributor_name = contributor.git_name
             contributor_email = contributor.git_email
             if contributor_email and contributor_name:
-                contribution_note = f"- `{contributor_name} <{contributor_email}>`: "
+                contribution_warning_postfix = (
+                    f"- `{contributor_name} <{contributor_email}>`: "
+                )
             elif contributor_name:
-                contribution_note = f"- `{contributor_name}`: "
+                contribution_warning_postfix = f"- `{contributor_name}`: "
             elif contributor_email:
-                contribution_note = f"- `{contributor_email}`: "
+                contribution_warning_postfix = f"- `{contributor_email}`: "
             else:
                 raise ValueError(
                     "GitCommitContributor must contain at least an git name or git email."
@@ -69,38 +76,42 @@ class CffManager:
             github_username = contributor.github_username
             if not github_username:
                 raise ValueError("GitHubContributor must have a GitHub username.")
-            contribution_note = f"- @{github_username}: "
+            contribution_warning_postfix = f"- @{github_username}: "
         else:
             raise ValueError(
                 "Contributor must be either a GitCommitContributor or a GitHubContributor."
             )
 
-        # Find the first contribution category that exists in the contribution details
-        # and is not empty
+        # Find the first contribution category that exists for the contributor in the contribution_mananager
+        contributions_by_category = (
+            contribution_manager.get_contribution_categories_for(
+                contributor=contributor
+            )
+        )
 
         first_contribution_category: tuple[str, str] | None = None
         for contribution_category in contribution_categories:
             if (
-                contribution_category[0] in contribution_details.get(contributor, {})
-                and len(contribution_details[contributor][contribution_category[0]]) > 0
+                contribution_category[0] in contributions_by_category
+                and len(contributions_by_category[contribution_category[0]]) > 0
             ):
                 first_contribution_category = contribution_category
                 break
         if first_contribution_category:
-            first_contribution = contribution_details[contributor][
+            first_contribution = contributions_by_category[
                 first_contribution_category[0]
             ][0]
-            if first_contribution_category[0] == "commits":
-                sha = first_contribution
+            if isinstance(first_contribution, GitHubPullRequestCommitContribution):
+                sha = first_contribution.sha
                 sha_url = f"https://github.com/{repo_for_compare}/commit/{sha}"
-                contribution_note += f"Commit: [`{first_contribution[:7]}`]({sha_url})"
+                contribution_warning_postfix += f"Commit: [`{sha[:7]}`]({sha_url})"
             else:
-                contribution_note += (
+                contribution_warning_postfix += (
                     f"[{first_contribution_category[1]}]({first_contribution})"
                 )
         else:
             raise Exception("No contribution found for the contributor.")
-        return contribution_note
+        return contribution_warning_postfix
 
     def create_cff_author_contributor_from_github_contributor(
         self,
@@ -108,7 +119,7 @@ class CffManager:
         token: str,
         warnings: list[str],
         logs: list[str],
-        contribution_note: str,
+        contribution_warning_postfix: str,
     ) -> CffAuthorContributor | None:
         contributor = github_contributor
         a: dict = {}
@@ -122,7 +133,7 @@ class CffManager:
         # skip the user if the user is not found
         if resp.status_code != 200:
             warnings.append(
-                f"- @{contributor.github_username}: Unable to fetch user data from GitHub API. Status code: {resp.status_code}{contribution_note}"
+                f"- @{contributor.github_username}: Unable to fetch user data from GitHub API. Status code: {resp.status_code}{contribution_warning_postfix}"
             )
             return None
 
@@ -148,7 +159,7 @@ class CffManager:
                 a["name"] = full_name
                 a["alias"] = user_profile_url
                 warnings.append(
-                    f"- @{contributor.github_username}: Only one name part found, treated as entity for deduplication consistency.{contribution_note}"
+                    f"- @{contributor.github_username}: Only one name part found, treated as entity for deduplication consistency.{contribution_warning_postfix}"
                 )
                 return CffAuthorContributor(cff_author_data=a)
 
@@ -173,10 +184,9 @@ class CffManager:
     def create_cff_author_contributor_from_git_commit_contributor(
         self,
         git_commit_contributor: GitCommitContributor,
-        cff: dict,
         warnings: list[str],
         logs: list[str],
-        contribution_note: str,
+        contribution_warning_postfix: str,
     ) -> CffAuthorContributor | None:
         contributor = git_commit_contributor
         name = contributor.git_name
@@ -203,7 +213,7 @@ class CffManager:
             if email:
                 new_cff_author_dict["email"] = email
             warnings.append(
-                f"- `{name}`: Only one name part found, treated as entity for deduplication consistency.{contribution_note}"
+                f"- `{name}`: Only one name part found, treated as entity for deduplication consistency.{contribution_warning_postfix}"
             )
         return CffAuthorContributor(cff_author_data=new_cff_author_dict)
 
@@ -267,13 +277,13 @@ class CffManager:
 
     def update_cff(
         self,
-        contributors: set[GitCommitContributor | GitHubContributor],
+        # contributors: set[GitCommitContributor | GitHubContributor],
         token: str,
         repo: str,
         pr_number: str,
         output_file: str,
         repo_for_compare: str,
-        contribution_details: dict,
+        contribution_manager: ContributionManager,
     ) -> tuple[
         set[GitCommitContributor | GitHubContributor], set[CffAuthorContributor]
     ]:
@@ -288,8 +298,8 @@ class CffManager:
             repo_for_compare (str): Repository for comparison.
             contribution_details (dict): Contribution details.
         """
-        if not isinstance(contributors, set):
-            raise ValueError("Contributors must be a set.")
+        if not isinstance(contribution_manager, ContributionManager):
+            raise ValueError("Contribution manager is not provided.")
 
         if not token:
             raise ValueError("GitHub token is not provided.")
@@ -320,21 +330,31 @@ class CffManager:
             set()
         )
 
+        contributors: set[Contributor] = set(contribution_manager.contributors)
+
         for contributor in contributors:
             new_cff_author: CffAuthorContributor | None = None
 
-            contribution_note = self.get_contribution_note_for_warning(
-                contributor=contributor,
-                contribution_details=contribution_details,
-                repo_for_compare=repo_for_compare,
-            )
+            if isinstance(contributor, GitHubContributor) or isinstance(
+                contributor, GitCommitContributor
+            ):
+                contribution_warning_postfix = self.get_contribution_warning_postfix(
+                    contributor=contributor,
+                    contribution_manager=contribution_manager,
+                    repo_for_compare=repo_for_compare,
+                )
+            else:
+                raise ValueError(
+                    "Contributor must be either a GitCommitContributor or a GitHubContributor."
+                )
 
             if isinstance(contributor, GitHubContributor):
+
                 new_cff_author = (
                     self.create_cff_author_contributor_from_github_contributor(
                         github_contributor=contributor,
                         token=token,
-                        contribution_note=contribution_note,
+                        contribution_warning_postfix=contribution_warning_postfix,
                         warnings=warnings,
                         logs=logs,
                     )
@@ -343,8 +363,7 @@ class CffManager:
                 new_cff_author = (
                     self.create_cff_author_contributor_from_git_commit_contributor(
                         git_commit_contributor=contributor,
-                        cff=cff,
-                        contribution_note=contribution_note,
+                        contribution_warning_postfix=contribution_warning_postfix,
                         warnings=warnings,
                         logs=logs,
                     )
@@ -380,8 +399,8 @@ class CffManager:
         with open(output_file, "a") as f:
             f.write("new_authors<<EOF\n")
             f.write(
-                self.create_json_for_contribution_details(
-                    contribution_details=contribution_details
+                self.create_json_for_contribution_manager(
+                    contribution_manager=contribution_manager
                 )
             )
             f.write("\nEOF\n")
@@ -402,7 +421,7 @@ class CffManager:
                 token=token,
                 repo=repo,
                 pr_number=pr_number,
-                contribution_details=contribution_details,
+                contribution_manager=contribution_manager,
                 repo_for_compare=repo_for_compare,
                 missing_authors=missing_authors,
                 missing_author_invalidates_pr=Flags.has(
@@ -416,9 +435,19 @@ class CffManager:
 
         return missing_authors, duplicate_authors
 
-    def create_json_for_contribution_details(self, contribution_details: dict) -> str:
+    def create_json_for_contribution_manager(
+        self, contribution_manager: ContributionManager
+    ) -> str:
         normalized = []
-        for contributor, contributions in contribution_details.items():
+        for (
+            contributor
+        ) in contribution_manager.contributors_sorted_by_first_contribution:
+            contributions: list[dict] = [
+                contribution.to_dict()
+                for contribution in contribution_manager.get_contributions_for(
+                    contributor=contributor
+                )
+            ]
             normalized_contributor = {
                 "contributor": contributor.to_dict(),
                 "contributions": contributions,
