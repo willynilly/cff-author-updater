@@ -15,8 +15,8 @@ This GitHub Action adds contributors to the `authors:` section of your `CITATION
 - Enriches metadata using GitHub profiles and ORCID lookups
 - Skips duplicate authors using multiple identity checks
 - Posts a pull request comment with the proposed CFF content, which can be manually copied to update the `CITATION.cff`. The comment also contains a detailed breakdown of each new author's qualifying contributions, grouped by category (commits, PR comments, reviews, issues, etc.), with clickable links to each contribution. It also contains warnings and logging information to help provide context for authorship detection and processing.
-- Optionally invalidates pull request when a new author is missing from the `CITATION.cff`.
-- Outputs updated `CITATION.cff` file and detailed contributions in a JSON file for other workflow steps to use.
+- Options for invalidating pull request when a new author is missing from the `CITATION.cff`, when there are duplicate authors, or when `cffconvert` fails to validate `CITATION.cff`.
+- Outputs updated `CITATION.cff` file, detailed contributions in a JSON file, validation metadata, and logs for other workflow steps to use.
 
 ---
 
@@ -46,6 +46,12 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
+      
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ">=3.13.3" # required for cff-author-updater
+          cache: 'pip' # optional for cff-author-updater
 
       - name: Run cff-author-updater
         uses: willynilly/cff-author-updater@v2.0.0
@@ -105,10 +111,15 @@ The `missing_author_invalidates_pr` and `duplicate_author_invalidates_pr` flags 
 | Name           | Description                                      |
 |----------------|--------------------------------------------------|
 | `new_authors`  | New authors and qualifying contributions in JSON |
-| `updated_cff`  | Full content of the updated CFF file             |
-| `error_logs`     | Logs that contain errors which invalidate a pull request             |
-| `warning_logs`     | Logs that contain warnings which do not invalidate a pull request             |
-| `info_logs`   | Logs that contain information about the process                     |
+| `original_cff`  | Full original CFF content in YAML             |
+| `original_cff_is_valid_cff`  | Whether the original CFF file has valid CFF according to cffconvert ('true' or 'false')       |
+| `updated_cff`  | Full updated CFF content in YAML. If no changes, this will be the same as the original CFF file.             |
+| `updated_cff_is_valid_cff`  | Whether the updated CFF file has valid CFF according to cffconvert ('true' or 'false')             |
+| `updated_cff_has_error`  | Whether the updated CFF file has an error ('true' or 'false'). An error invalidates the pull request.             |
+| `updated_cff_has_warning`  | Whether the updated CFF file has an error ('true' or 'false'). A warning does not invalidate the pull request.             |
+| `error_log`   | Log that contains errors about the CFF author update process.             |
+| `warning_log` | Log that contains warnings about the CFF author update process.             |
+| `info_log`    | Log that contains general information about the CFF author update process.                     |
 
 ---
 
@@ -117,7 +128,7 @@ The `missing_author_invalidates_pr` and `duplicate_author_invalidates_pr` flags 
 To use this action in your repository:
 
 - ✅ A `CITATION.cff` file must exist at the root of your repository, or you must specify a custom path using the `cff_path` input.
-- ✅ Python is automatically set up by the composite action (uses `setup-python@v5`, Python 3.13).
+- ✅ Python version 3.13 or higher needs to be configured in your workflow (e.g., using `setup-python@v5`). See the **Example Workflow** above.
 - ✅ You must pass GitHub’s built-in `${{ secrets.GITHUB_TOKEN }}` to the `github_token` input.
 - ✅ You must reference this action in your workflow as:
 

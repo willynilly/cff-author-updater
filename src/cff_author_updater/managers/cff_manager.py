@@ -350,11 +350,11 @@ class CffManager:
 
         cffconvert_validation_errors: list[str] = []
 
-        is_valid_cff: bool = True
+        original_cff_is_valid_cff: bool = True
         try:
             self.cff_file = CffFile(cff_path=self.cff_path, validate=True)
         except CffFileValidationError as e:
-            is_valid_cff = False
+            original_cff_is_valid_cff = False
             self.cff_file = CffFile(cff_path=self.cff_path, validate=False)
             self._process_cff_validation_errors(cff_file_validation_error=e)
             cffconvert_validation_errors += e.cffconvert_validation_errors
@@ -434,15 +434,33 @@ class CffManager:
             cff["authors"].append(new_cff_author.cff_author_data)
 
         self.cff_file.cff = cff
-        if is_valid_cff:
+        updated_cff_is_valid_cff: bool = original_cff_is_valid_cff
+        if original_cff_is_valid_cff:
             try:
                 self.cff_file.save()
             except CffFileValidationError as e:
-                is_valid_cff = False
+                updated_cff_is_valid_cff = False
                 self._process_cff_validation_errors(cff_file_validation_error=e)
                 cffconvert_validation_errors += e.cffconvert_validation_errors
 
+        log_collector = get_log_collector()
+        error_logs = log_collector.get_error_logs()
+        warning_logs = log_collector.get_warning_logs()
+        info_logs = log_collector.get_info_logs()
+
         with open(output_file, "a") as f:
+            f.write(
+                f"original_cff_is_valid_cff={'true' if original_cff_is_valid_cff else 'false'}\n"
+            )
+            f.write(
+                f"updated_cff_is_valid_cff={'true' if updated_cff_is_valid_cff else 'false'}\n"
+            )
+            f.write(
+                f"updated_cff_has_error={'true' if len(error_logs) > 0 else 'false'}\n"
+            )
+            f.write(
+                f"updated_cff_has_warning={'true' if len(warning_logs) > 0 else 'false'}\n"
+            )
             f.write("new_authors<<EOF\n")
             f.write(
                 self.create_json_for_contribution_manager(
@@ -450,19 +468,21 @@ class CffManager:
                 )
             )
             f.write("\nEOF\n")
+
+            f.write("original_cff<<EOF\n")
+            f.write(yaml.dump(self.cff_file.original_cff, sort_keys=False))
+            f.write("\nEOF\n")
+
             f.write("updated_cff<<EOF\n")
             f.write(yaml.dump(cff, sort_keys=False))
             f.write("\nEOF\n")
-            log_collector = get_log_collector()
-            error_logs = log_collector.get_error_logs()
-            warning_logs = log_collector.get_warning_logs()
-            info_logs = log_collector.get_info_logs()
+
             if error_logs:
-                f.write("error_logs<<EOF\n" + "\n".join(error_logs) + "\nEOF\n")
+                f.write("error_log<<EOF\n" + "\n".join(error_logs) + "\nEOF\n")
             if warning_logs:
-                f.write("warning_logs<<EOF\n" + "\n".join(warning_logs) + "\nEOF\n")
+                f.write("warning_log<<EOF\n" + "\n".join(warning_logs) + "\nEOF\n")
             if info_logs:
-                f.write("info_logs<<EOF\n" + "\n".join(info_logs) + "\nEOF\n")
+                f.write("info_log<<EOF\n" + "\n".join(info_logs) + "\nEOF\n")
 
         missing_authors: set = contributors - already_in_cff_contributors
         if Flags.has("post_pr_comment") and pr_number:

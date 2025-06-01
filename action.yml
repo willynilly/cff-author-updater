@@ -69,24 +69,31 @@ inputs:
 outputs:
   new_authors:
     description: New authors and qualifying contributions in JSON
+  original_cff:
+    description: Full original CFF content in YAML
+  original_cff_is_valid_cff:
+    description: Whether the original CFF file has valid CFF according to cffconvert ('true' or 'false')
   updated_cff:
-    description: Full updated CFF content
-  error_logs:
-    description: Logs that contain errors which invalidate a pull request
-  warning_logs:
-    description: Logs that contain warnings which do not invalidate a pull request
-  info_logs:
-    description: Logs that contain information about the process
+    description: Full updated CFF content in YAML. If no changes, this will be the same as the original CFF file.
+  updated_cff_is_valid_cff:
+    description: Whether the updated CFF file has valid CFF according to cffconvert ('true' or 'false')
+  updated_cff_has_error:
+    description: Whether the updated CFF file has an error ('true' or 'false'). An error invalidates the pull request.
+  updated_cff_has_warning:
+    description: Whether the updated CFF file has an error ('true' or 'false'). A warning does not invalidate the pull request.
+  error_log:
+    description: Log that contains errors about the CFF author update process.
+  warning_log:
+    description: Log that contains warnings about the CFF author update process.
+  info_log:
+    description: Log that contains general information about the CFF author update process.
 
 runs:
   using: "composite"
   steps:
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.13.3"
 
     - name: Install action with pip
-      run: pip install ${{ github.action_path }}
+      run: pip install --force-reinstall ${{ github.action_path }} # the --force-reinstall avoids caching issues from external dependencies which may rely on this action
       shell: bash
 
     - name: Update CFF authors
