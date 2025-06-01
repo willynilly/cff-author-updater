@@ -85,7 +85,7 @@ class CffAuthorContributor(Contributor):
         a_alias = a.get("alias", "").casefold().strip()
         b_alias = b.get("alias", "").casefold().strip()
         a_is_github_user = is_github_user_profile_url(url=a_alias)
-        if a_alias and b_alias == b_alias and a_is_github_user:
+        if a_alias and b_alias and a_is_github_user and a_alias == b_alias:
             return True
 
         # else, match on email
