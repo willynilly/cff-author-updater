@@ -1,6 +1,7 @@
-from datetime import datetime
 import os
 import re
+from datetime import datetime
+
 import requests
 
 from cff_author_updater.contributions.github_pull_request_comment_contribution import (
@@ -49,9 +50,9 @@ class GitHubPullRequestManager(GitHubManager):
 
     def _load_github_event(self, event: dict):
         super()._load_github_event(event=event)
-        self.pr_number = event.get("number") or event.get("pull_request", {}).get(
+        self.pr_number = str(event.get("number")) or str(event.get("pull_request", {}).get(
             "number"
-        )
+        ))
 
         if not isinstance(self.pr_number, str):
             raise Exception(
