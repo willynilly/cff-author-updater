@@ -12,6 +12,9 @@ from cff_author_updater.contributors.git_commit_contributor import GitCommitCont
 from cff_author_updater.contributors.github_contributor import GitHubContributor
 from cff_author_updater.logging_config import get_log_collector
 from cff_author_updater.managers.contribution_manager import ContributionManager
+from cff_author_updater.managers.github_pull_request_manager import (
+    GitHubPullRequestManager,
+)
 
 
 class CffAuthorReview:
@@ -19,24 +22,20 @@ class CffAuthorReview:
     def __init__(
         self,
         cff_file: CffFile,
-        token: str,
-        repo: str,
-        pr_number: str,
-        github_action_version: str,
+        github_pull_request_manager: GitHubPullRequestManager,
         contribution_manager: ContributionManager,
-        repo_for_compare: str,
         missing_authors: set,
         missing_author_invalidates_pr: bool,
         duplicate_authors: set,
         duplicate_author_invalidates_pr: bool,
     ):
         self.cff_file = cff_file
-        self.token = token
-        self.repo = repo
-        self.pr_number = pr_number
-        self.github_action_version = github_action_version
+        self.github_pull_request_manager = github_pull_request_manager
+        self.repo = self.github_pull_request_manager.repo
+        self.pr_number = self.github_pull_request_manager.pr_number
+        self.github_action_version = self.github_pull_request_manager.github_action_version
+        self.repo_for_compare = self.github_pull_request_manager.repo_for_compare
         self.contribution_manager = contribution_manager
-        self.repo_for_compare = repo_for_compare
         self.missing_authors = missing_authors
         self.missing_author_invalidates_pr = missing_author_invalidates_pr
         self.duplicate_authors = duplicate_authors

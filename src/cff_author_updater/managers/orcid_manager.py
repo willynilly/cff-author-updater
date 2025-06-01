@@ -71,13 +71,13 @@ class OrcidManager:
                 )
                 if target in possibilities:
                     logger.info(
-                        f"- `{full_name}` matched to ORCID `{orcid_id}` (record name: **{credit_name or combined}**)"
+                        f"`{full_name}` matched to ORCID `{orcid_id}` (record name: **{credit_name or combined}**)"
                     )
                     return orcid_id
                 else:
                     logger.warning(
-                        f"- `{full_name}`: ORCID `{orcid_id}` found but name mismatch"
+                        f"`{full_name}`: ORCID `{orcid_id}` found but name mismatch"
                     )
         except Exception as e:
-            logger.warning(f"- `{full_name}`: ORCID search failed: {e}")
+            logger.warning(f"`{full_name}`: ORCID search failed: {e}")
         return None

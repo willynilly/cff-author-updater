@@ -2,6 +2,7 @@ import copy
 import json
 import logging
 from pathlib import Path
+
 import requests
 import yaml
 
@@ -52,17 +53,16 @@ class CffManager:
         self,
         contributor: GitCommitContributor | GitHubContributor,
         contribution_manager: ContributionManager,
-        repo_for_compare: str,
     ) -> str:
         """
         Get contribution warning prefix.
         Args:
             contributor (GitCommitContributor | GitHubContributor): The contributor.
             contribution_manager (ContributionManager): Contribution manager.
-            repo_for_compare (str): Repository for comparison
         Returns:
             str: Contribution warning prefix.
         """
+        repo_for_compare = self.github_pull_request_manager.repo_for_compare
 
         contribution_warning_postfix: str = ""
         if isinstance(contributor, GitCommitContributor):
@@ -129,11 +129,12 @@ class CffManager:
     def create_cff_author_contributor_from_github_contributor(
         self,
         github_contributor: GitHubContributor,
-        token: str,
         contribution_warning_postfix: str,
     ) -> CffAuthorContributor | None:
+        token = self.github_pull_request_manager.token
+
         contributor = github_contributor
-        a: dict = {}
+        new_cff_author_data: dict = {}
 
         # Github user contributor
         user_url: str = f"https://api.github.com/users/{contributor.github_username}"
@@ -144,7 +145,7 @@ class CffManager:
         # skip the user if the user is not found
         if resp.status_code != 200:
             logger.warning(
-                f"- @{contributor.github_username}: Unable to fetch user data from GitHub API. Status code: {resp.status_code}{contribution_warning_postfix}"
+                f"@{contributor.github_username}: Unable to fetch user data from GitHub API. Status code: {resp.status_code}{contribution_warning_postfix}"
             )
             return None
 
@@ -154,43 +155,43 @@ class CffManager:
         user_profile_url: str = f"https://github.com/{contributor.github_username}"
 
         if user_type == "Organization":
-            a["name"] = user.get("name") or contributor.github_username
-            a["alias"] = user_profile_url
+            new_cff_author_data["name"] = user.get("name") or contributor.github_username
+            new_cff_author_data["alias"] = user_profile_url
             if user.get("email"):
-                a["email"] = user["email"]
+                new_cff_author_data["email"] = user["email"]
         else:
             full_name: str = user.get("name") or contributor.github_username
             name_parts: list[str] = full_name.split(" ", 1)
 
             if len(name_parts) > 1:
-                a["given-names"] = name_parts[0]
-                a["family-names"] = name_parts[1]
-                a["alias"] = user_profile_url
+                new_cff_author_data["given-names"] = name_parts[0]
+                new_cff_author_data["family-names"] = name_parts[1]
+                new_cff_author_data["alias"] = user_profile_url
             else:
-                a["name"] = full_name
-                a["alias"] = user_profile_url
+                new_cff_author_data["name"] = full_name
+                new_cff_author_data["alias"] = user_profile_url
                 logger.info(
-                    f"- @{contributor.github_username}: Only one name part found, treated as entity for deduplication consistency.{contribution_warning_postfix}"
+                    f"@{contributor.github_username}: Only one name part found, treated as entity for deduplication consistency.{contribution_warning_postfix}"
                 )
-                return CffAuthorContributor(cff_author_data=a)
+                return CffAuthorContributor(cff_author_data=new_cff_author_data)
 
             if user.get("email"):
-                a["email"] = user["email"]
+                new_cff_author_data["email"] = user["email"]
             orcid = self.orcid_manager.extract_orcid(text=user.get("bio"))
             if not orcid and full_name:
                 orcid = self.orcid_manager.search_orcid(
                     full_name=full_name, email=user.get("email")
                 )
             if orcid and self.orcid_manager.validate_orcid(orcid=orcid):
-                a["orcid"] = f"https://orcid.org/{orcid}"
+                new_cff_author_data["orcid"] = f"https://orcid.org/{orcid}"
             elif orcid:
                 logger.warning(
-                    f"- @{contributor.github_username}: ORCID `{orcid}` is invalid or unreachable."
+                    f"@{contributor.github_username}: ORCID `{orcid}` is invalid or unreachable."
                 )
             else:
-                logger.warning(f"- @{contributor.github_username}: No ORCID found.")
+                logger.warning(f"@{contributor.github_username}: No ORCID found.")
 
-        return CffAuthorContributor(cff_author_data=a)
+        return CffAuthorContributor(cff_author_data=new_cff_author_data)
 
     def create_cff_author_contributor_from_git_commit_contributor(
         self,
@@ -201,30 +202,30 @@ class CffManager:
         name = contributor.git_name
         email = contributor.git_email
         name_parts: list[str] = name.split(" ", 1)
-        new_cff_author_dict: dict = {}
+        new_cff_author_data: dict = {}
 
         if len(name_parts) > 1:
-            new_cff_author_dict["given-names"] = name_parts[0]
-            new_cff_author_dict["family-names"] = name_parts[1]
+            new_cff_author_data["given-names"] = name_parts[0]
+            new_cff_author_data["family-names"] = name_parts[1]
             if email:
-                new_cff_author_dict["email"] = email
+                new_cff_author_data["email"] = email
             orcid = self.orcid_manager.search_orcid(name, email)
             if orcid and self.orcid_manager.validate_orcid(orcid):
-                new_cff_author_dict["orcid"] = f"https://orcid.org/{orcid}"
+                new_cff_author_data["orcid"] = f"https://orcid.org/{orcid}"
             elif orcid:
                 logger.warning(
-                    f"- `{name}`: ORCID `{orcid}` is invalid or unreachable."
+                    f"`{name}`: ORCID `{orcid}` is invalid or unreachable."
                 )
             else:
-                logger.warning(f"- `{name}`: No ORCID found.")
+                logger.warning(f"`{name}`: No ORCID found.")
         else:
-            new_cff_author_dict["name"] = name
+            new_cff_author_data["name"] = name
             if email:
-                new_cff_author_dict["email"] = email
+                new_cff_author_data["email"] = email
             logger.info(
-                f"- `{name}`: Only one name part found, treated as entity for deduplication consistency.{contribution_warning_postfix}"
+                f"`{name}`: Only one name part found, treated as entity for deduplication consistency.{contribution_warning_postfix}"
             )
-        return CffAuthorContributor(cff_author_data=new_cff_author_dict)
+        return CffAuthorContributor(cff_author_data=new_cff_author_data)
 
     def create_identifier_of_cff_author_for_logger(
         self, cff_author: CffAuthorContributor
@@ -330,14 +331,9 @@ class CffManager:
         if not isinstance(contribution_manager, ContributionManager):
             raise ValueError("Contribution manager is not provided.")
 
-        token = self.github_pull_request_manager.token
         repo = self.github_pull_request_manager.repo
         pr_number = self.github_pull_request_manager.pr_number
         output_file = self.github_pull_request_manager.output_file
-        repo_for_compare = self.github_pull_request_manager.repo_for_compare
-
-        if not token:
-            raise ValueError("GitHub token is not provided.")
 
         if not repo:
             raise ValueError("Repository is not provided.")
@@ -350,11 +346,11 @@ class CffManager:
 
         cffconvert_validation_errors: list[str] = []
 
-        original_cff_is_valid_cff: bool = True
+        original_cff_is_valid_cff: bool = False
         try:
             self.cff_file = CffFile(cff_path=self.cff_path, validate=True)
+            original_cff_is_valid_cff = True
         except CffFileValidationError as e:
-            original_cff_is_valid_cff = False
             self.cff_file = CffFile(cff_path=self.cff_path, validate=False)
             self._process_cff_validation_errors(cff_file_validation_error=e)
             cffconvert_validation_errors += e.cffconvert_validation_errors
@@ -382,7 +378,6 @@ class CffManager:
                 contribution_warning_postfix = self._get_contribution_warning_postfix(
                     contributor=contributor,
                     contribution_manager=contribution_manager,
-                    repo_for_compare=repo_for_compare,
                 )
             else:
                 raise ValueError(
@@ -394,7 +389,6 @@ class CffManager:
                 new_cff_author = (
                     self.create_cff_author_contributor_from_github_contributor(
                         github_contributor=contributor,
-                        token=token,
                         contribution_warning_postfix=contribution_warning_postfix,
                     )
                 )
@@ -423,7 +417,7 @@ class CffManager:
                         cff_author=new_cff_author
                     )
                     already_in_cff_contributors.add(contributor)
-                    dup_msg = f"- {identifier}: Already exists in CFF file."
+                    dup_msg = f"{identifier}: Already exists in CFF file."
                     if Flags.has("duplicate_author_invalidates_pr"):
                         logger.error(dup_msg)
                     else:
@@ -486,17 +480,11 @@ class CffManager:
 
         missing_authors: set = contributors - already_in_cff_contributors
         if Flags.has("post_pr_comment") and pr_number:
-            github_action_version = (
-                self.github_pull_request_manager.get_github_action_version()
-            )
+            
             cff_author_review: CffAuthorReview = CffAuthorReview(
                 cff_file=self.cff_file,
-                token=token,
-                repo=repo,
-                pr_number=pr_number,
-                github_action_version=github_action_version,
+                github_pull_request_manager=self.github_pull_request_manager,
                 contribution_manager=contribution_manager,
-                repo_for_compare=repo_for_compare,
                 missing_authors=missing_authors,
                 missing_author_invalidates_pr=Flags.has(
                     "missing_author_invalidates_pr"
