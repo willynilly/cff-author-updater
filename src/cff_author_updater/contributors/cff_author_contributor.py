@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 from cff_author_updater.contributors.contributor import Contributor

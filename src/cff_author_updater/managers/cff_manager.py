@@ -7,7 +7,6 @@ import yaml
 
 from cff_author_updater.cff_author_review import CffAuthorReview
 from cff_author_updater.cff_file import CffFile, CffFileValidationError
-from cff_author_updater.contributions.contribution import Contribution
 from cff_author_updater.contributions.github_pull_request_commit_contribution import (
     GitHubPullRequestCommitContribution,
 )
@@ -21,7 +20,9 @@ from cff_author_updater.contributors.github_contributor import (
 from cff_author_updater.flags import Flags
 from cff_author_updater.logging_config import get_log_collector
 from cff_author_updater.managers.contribution_manager import ContributionManager
-from cff_author_updater.managers.github_manager import GithubManager
+from cff_author_updater.managers.github_pull_request_manager import (
+    GitHubPullRequestManager,
+)
 from cff_author_updater.managers.orcid_manager import OrcidManager
 
 logger = logging.getLogger(__name__)
@@ -38,13 +39,16 @@ class CffManager:
     ]
 
     def __init__(
-        self, cff_path: Path, github_manager: GithubManager, orcid_manager: OrcidManager
+        self,
+        cff_path: Path,
+        github_pull_request_manager: GitHubPullRequestManager,
+        orcid_manager: OrcidManager,
     ):
-        self.github_manager = github_manager
+        self.github_pull_request_manager = github_pull_request_manager
         self.orcid_manager = orcid_manager
         self.cff_path = cff_path
 
-    def get_contribution_warning_postfix(
+    def _get_contribution_warning_postfix(
         self,
         contributor: GitCommitContributor | GitHubContributor,
         contribution_manager: ContributionManager,
@@ -228,7 +232,7 @@ class CffManager:
         a = cff_author.cff_author_data
         if cff_author is None:
             raise ValueError(
-                f"Cannot create identifier for CFF Author: cff_author cannot be None."
+                "Cannot create identifier for CFF Author: cff_author cannot be None."
             )
         if "alias" in a:
             username: str | None = parse_github_username_from_github_profile_url(
@@ -246,7 +250,7 @@ class CffManager:
             return a["name"]
         else:
             raise ValueError(
-                f"Cannot create identifier for CFF author: cff_author must have an alias, email, or name."
+                "Cannot create identifier for CFF author: cff_author must have an alias, email, or name."
             )
 
     def validate_old_cff_authors_are_unique(
@@ -312,11 +316,6 @@ class CffManager:
 
     def update_cff(
         self,
-        token: str,
-        repo: str,
-        pr_number: str,
-        output_file: str,
-        repo_for_compare: str,
         contribution_manager: ContributionManager,
     ) -> tuple[
         set[GitCommitContributor | GitHubContributor],
@@ -326,15 +325,16 @@ class CffManager:
         """
         Process contributors and update the CFF file.
         Args:
-            token (str): GitHub token.
-            repo (str): Repository name.
-            pr_number (str): Pull request number.
-            output_file (str): Output file path.
-            repo_for_compare (str): Repository for comparison.
             contribution_manager (ContributionManager): Contribution manager.
         """
         if not isinstance(contribution_manager, ContributionManager):
             raise ValueError("Contribution manager is not provided.")
+
+        token = self.github_pull_request_manager.token
+        repo = self.github_pull_request_manager.repo
+        pr_number = self.github_pull_request_manager.pr_number
+        output_file = self.github_pull_request_manager.output_file
+        repo_for_compare = self.github_pull_request_manager.repo_for_compare
 
         if not token:
             raise ValueError("GitHub token is not provided.")
@@ -379,7 +379,7 @@ class CffManager:
             if isinstance(contributor, GitHubContributor) or isinstance(
                 contributor, GitCommitContributor
             ):
-                contribution_warning_postfix = self.get_contribution_warning_postfix(
+                contribution_warning_postfix = self._get_contribution_warning_postfix(
                     contributor=contributor,
                     contribution_manager=contribution_manager,
                     repo_for_compare=repo_for_compare,
@@ -486,7 +486,9 @@ class CffManager:
 
         missing_authors: set = contributors - already_in_cff_contributors
         if Flags.has("post_pr_comment") and pr_number:
-            github_action_version = self.github_manager.get_github_action_version()
+            github_action_version = (
+                self.github_pull_request_manager.get_github_action_version()
+            )
             cff_author_review: CffAuthorReview = CffAuthorReview(
                 cff_file=self.cff_file,
                 token=token,
@@ -505,10 +507,7 @@ class CffManager:
                 ),
             )
 
-            self.github_manager.post_pull_request_comment(
-                token=token,
-                repo=repo,
-                pr_number=pr_number,
+            self.github_pull_request_manager.post_pull_request_comment(
                 comment_body=cff_author_review.get_review(),
             )
 

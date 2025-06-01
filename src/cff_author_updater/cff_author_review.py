@@ -1,8 +1,9 @@
-from datetime import datetime, timezone
 import os
 import re
+from datetime import datetime, timezone
 
 import yaml
+
 from cff_author_updater.cff_file import CffFile
 from cff_author_updater.contributions.github_pull_request_commit_contribution import (
     GitHubPullRequestCommitContribution,
@@ -159,7 +160,7 @@ class CffAuthorReview:
             )
             if self.missing_author_invalidates_pr:
                 body += f" If the `{cff_path}` file is missing any new author, the pull request will remain invalid."
-            body += f"***"
+            body += "***"
         else:
             duplicate_author_error_message: str = (
                 ", but has at least one duplicate author."

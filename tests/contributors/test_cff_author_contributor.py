@@ -5,13 +5,13 @@ from cff_author_updater.contributors.cff_author_contributor import CffAuthorCont
 
 def test_contructor_with_empty_data():
     with pytest.raises(ValueError) as e:
-        a: CffAuthorContributor = CffAuthorContributor(cff_author_data={})
+        a: CffAuthorContributor = CffAuthorContributor(cff_author_data={})  # noqa: F841
     assert "Unknown CFF Author Type" in str(e.value)
 
 
 def test_contructor_with_none_as_data():
     with pytest.raises(ValueError) as e:
-        a: CffAuthorContributor = CffAuthorContributor(cff_author_data=None)  # type: ignore
+        a: CffAuthorContributor = CffAuthorContributor(cff_author_data=None)  # type: ignore  # noqa: F841
     assert "Invalid CFF author data" in str(e.value)
 
 

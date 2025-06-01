@@ -9,6 +9,7 @@
   },
   "python.analysis.typeCheckingMode": "basic",
   "python.analysis.autoSearchPaths": true,
+  "python.analysis.diagnosticMode": "workspace",  // good to keep
   "python.testing.pytestArgs": [
     "tests",
   ],
@@ -19,5 +20,10 @@
   "python.analysis.extraPaths": [
     "./src"
   ],
-
+  "ruff.enable": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "always",
+    "source.organizeImports": "always"
+  }
 }
+

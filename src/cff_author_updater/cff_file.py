@@ -11,7 +11,7 @@ class CffFileValidationError(ValueError):
         super().__init__(message)
 
         CFFCONVERT_VALIDATION_DUPLICATE_AUTHOR_TEXT: str = (
-            f"Failed validating 'uniqueItems' in schema['properties']['authors']"
+            "Failed validating 'uniqueItems' in schema['properties']['authors']"
         )
 
         self.cffconvert_validation_errors = validation_errors
@@ -96,7 +96,7 @@ class CffFile:
         import subprocess
 
         try:
-            result = subprocess.run(
+            subprocess.run(
                 ["cffconvert", "--validate", "--infile", cff_path],
                 check=True,
                 capture_output=True,
