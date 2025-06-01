@@ -150,33 +150,61 @@ class GitHubPullRequestManager(GitHubManager):
 
         return contribution_manager
 
+    # def collect_contributors_for_pr_issues(self) -> ContributionManager:
+    #     contribution_manager = ContributionManager()
+
+    #     # PR Issues
+    #     if Flags.has("authorship_for_pr_issues"):
+    #         token = self.token
+    #         repo = self.repo
+    #         pr_number = self.pr_number
+    #         bot_blacklist = self.bot_blacklist
+
+    #         session: requests.Session = self.get_github_session(token=token)
+
+    #         linked_issues = self.get_linked_issues(
+    #             session=session, repo=repo, pr_number=pr_number
+    #         )
+    #         for issue_number in linked_issues:
+
+    #             issue_url = f"https://api.github.com/repos/{repo}/issues/{issue_number}"
+    #             issue = session.get(issue_url).json()
+    #             github_username = issue.get("user", {}).get("login")
+    #             url = issue.get("html_url")
+    #             created_at_str = issue.get("created_at")
+    #             created_at = (
+    #                 datetime.strptime(created_at_str, "%Y-%m-%dT%H:%M:%SZ")
+    #                 if created_at_str
+    #                 else datetime.min
+    #             )
+    #             if github_username and github_username not in bot_blacklist:
+    #                 contributor = GitHubContributor(github_username=github_username)
+    #                 contribution = GitHubPullRequestIssueContribution(
+    #                     id=url, created_at=created_at
+    #                 )
+    #                 contribution_manager.add_contribution(contribution, contributor)
+
+    #     return contribution_manager
+
     def collect_contributors_for_pr_issues(self) -> ContributionManager:
         contribution_manager = ContributionManager()
 
-        # PR Issues
         if Flags.has("authorship_for_pr_issues"):
-            token = self.token
-            repo = self.repo
-            pr_number = self.pr_number
+
             bot_blacklist = self.bot_blacklist
 
-            session: requests.Session = self.get_github_session(token=token)
+            linked_issues = self.get_linked_issues_graphql()
 
-            linked_issues = self.get_linked_issues(
-                session=session, repo=repo, pr_number=pr_number
-            )
-            for issue_number in linked_issues:
-
-                issue_url = f"https://api.github.com/repos/{repo}/issues/{issue_number}"
-                issue = session.get(issue_url).json()
-                github_username = issue.get("user", {}).get("login")
-                url = issue.get("html_url")
-                created_at_str = issue.get("created_at")
+            for issue in linked_issues:
+                github_username = issue["author"]["login"] if issue["author"] else None
+                url = issue["url"]
+                created_at_str = issue["createdAt"]
                 created_at = (
                     datetime.strptime(created_at_str, "%Y-%m-%dT%H:%M:%SZ")
                     if created_at_str
                     else datetime.min
                 )
+
                 if github_username and github_username not in bot_blacklist:
                     contributor = GitHubContributor(github_username=github_username)
                     contribution = GitHubPullRequestIssueContribution(
@@ -186,26 +214,66 @@ class GitHubPullRequestManager(GitHubManager):
 
         return contribution_manager
 
-    def collect_contributors_for_pr_issue_comments(self):
+
+    # def collect_contributors_for_pr_issue_comments(self):
+    #     contribution_manager = ContributionManager()
+
+    #     # PR Issue Comments
+    #     if Flags.has("authorship_for_pr_issue_comments"):
+
+    #         token = self.token
+    #         repo = self.repo
+    #         pr_number = self.pr_number
+    #         bot_blacklist = self.bot_blacklist
+
+    #         session: requests.Session = self.get_github_session(token=token)
+
+    #         linked_issues = self.get_linked_issues(
+    #             session=session, repo=repo, pr_number=pr_number
+    #         )
+    #         for issue_number in linked_issues:
+
+    #             comments_url = f"https://api.github.com/repos/{repo}/issues/{issue_number}/comments"
+    #             for comment in session.get(comments_url).json():
+    #                 github_username = comment.get("user", {}).get("login")
+    #                 url = comment.get("html_url")
+    #                 created_at_str = comment.get("created_at")
+    #                 created_at = (
+    #                     datetime.strptime(created_at_str, "%Y-%m-%dT%H:%M:%SZ")
+    #                     if created_at_str
+    #                     else datetime.min
+    #                 )
+    #                 if github_username and github_username not in bot_blacklist:
+    #                     contributor = GitHubContributor(github_username=github_username)
+    #                     contribution = GitHubPullRequestIssueCommentContribution(
+    #                         id=url, created_at=created_at
+    #                     )
+    #                     contribution_manager.add_contribution(contribution, contributor)
+
+    #     return contribution_manager
+
+    def collect_contributors_for_pr_issue_comments(self) -> ContributionManager:
         contribution_manager = ContributionManager()
 
-        # PR Issue Comments
         if Flags.has("authorship_for_pr_issue_comments"):
 
             token = self.token
             repo = self.repo
-            pr_number = self.pr_number
             bot_blacklist = self.bot_blacklist
 
             session: requests.Session = self.get_github_session(token=token)
 
-            linked_issues = self.get_linked_issues(
-                session=session, repo=repo, pr_number=pr_number
-            )
-            for issue_number in linked_issues:
+            linked_issues = self.get_linked_issues_graphql()
+
+            for issue in linked_issues:
+                issue_number = issue["number"]
 
                 comments_url = f"https://api.github.com/repos/{repo}/issues/{issue_number}/comments"
-                for comment in session.get(comments_url).json():
+                response = session.get(comments_url)
+                response.raise_for_status()
+
+                comments = response.json()
+                for comment in comments:
                     github_username = comment.get("user", {}).get("login")
                     url = comment.get("html_url")
                     created_at_str = comment.get("created_at")
@@ -222,6 +290,54 @@ class GitHubPullRequestManager(GitHubManager):
                         contribution_manager.add_contribution(contribution, contributor)
 
         return contribution_manager
+
+    
+    def get_linked_issues_graphql(self) -> list[dict]:
+        token = self.token
+        repo_owner, repo_name = self.repo.split("/")
+        pr_number = int(self.pr_number)
+
+        url = "https://api.github.com/graphql"
+        headers = {
+            "Authorization": f"bearer {token}",
+            "Accept": "application/vnd.github+json",
+        }
+
+        query = """
+        query($owner: String!, $name: String!, $prNumber: Int!) {
+        repository(owner: $owner, name: $name) {
+            pullRequest(number: $prNumber) {
+            closingIssuesReferences(first: 50) {
+                nodes {
+                number
+                url
+                author {
+                    login
+                }
+                createdAt
+                }
+            }
+            }
+        }
+        }
+        """
+
+        variables = {
+            "owner": repo_owner,
+            "name": repo_name,
+            "prNumber": pr_number,
+        }
+
+        response = requests.post(
+            url, json={"query": query, "variables": variables}, headers=headers
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        issues = data.get("data", {}).get("repository", {}).get("pullRequest", {}).get("closingIssuesReferences", {}).get("nodes", [])
+
+        return issues
+
 
     # def collect_contributors_for_pr_commits(self) -> ContributionManager:
     #     contribution_manager = ContributionManager()
