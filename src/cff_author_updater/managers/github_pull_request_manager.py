@@ -223,24 +223,97 @@ class GitHubPullRequestManager(GitHubManager):
 
         return contribution_manager
 
+    # def collect_contributors_for_pr_commits(self) -> ContributionManager:
+    #     contribution_manager = ContributionManager()
+
+    #     # PR Commits
+    #     if Flags.has("authorship_for_pr_commits"):
+
+    #         token = self.token
+    #         repo = self.repo
+    #         base = self.base_branch
+    #         head = self.head_branch
+    #         bot_blacklist = self.bot_blacklist
+
+    #         url = f"https://api.github.com/repos/{repo}/compare/{base}...{head}"
+    #         headers = {"Authorization": f"token {token}"}
+    #         r = requests.get(url, headers=headers)
+    #         r.raise_for_status()
+    #         data = r.json()
+    #         commits = data.get("commits", [])
+
+    #         coauthor_regex = re.compile(
+    #             r"^Co-authored-by:\s*(.+?)\s*<(.+?)>$", re.IGNORECASE
+    #         )
+
+    #         for c in commits:
+    #             sha = c.get("sha")
+    #             commit_author_data = c.get("commit", {}).get("author", {})
+    #             github_author = c.get("author")
+
+    #             commit_date_str = commit_author_data.get("date")
+    #             commit_date = (
+    #                 datetime.strptime(commit_date_str, "%Y-%m-%dT%H:%M:%SZ")
+    #                 if commit_date_str
+    #                 else datetime.min
+    #             )
+
+    #             if github_author and github_author.get("login"):
+    #                 username = github_author["login"]
+    #                 if username not in bot_blacklist:
+    #                     contributor = GitHubContributor(github_username=username)
+    #                     contribution = GitHubPullRequestCommitContribution(
+    #                         sha=sha, created_at=commit_date
+    #                     )
+    #                     contribution_manager.add_contribution(contribution, contributor)
+    #             elif commit_author_data:
+    #                 name = commit_author_data.get("name")
+    #                 if name in bot_blacklist:
+    #                     continue
+    #                 email = commit_author_data.get("email")
+    #                 if name or email:
+    #                     contributor = GitCommitContributor(
+    #                         git_name=name.strip(), git_email=email.strip()
+    #                     )
+    #                     contribution = GitHubPullRequestCommitContribution(
+    #                         sha=sha, created_at=commit_date
+    #                     )
+    #                     contribution_manager.add_contribution(contribution, contributor)
+
+    #             # add coauthors
+    #             for line in c.get("commit", {}).get("message", "").splitlines():
+    #                 match = coauthor_regex.match(line.strip())
+    #                 if match:
+    #                     name, email = match.groups()
+    #                     if name not in bot_blacklist:
+    #                         contributor = GitCommitContributor(
+    #                             git_name=name.strip(), git_email=email.strip()
+    #                         )
+    #                         contribution = GitHubPullRequestCommitContribution(
+    #                             sha=sha, created_at=commit_date
+    #                         )
+    #                         contribution_manager.add_contribution(
+    #                             contribution, contributor
+    #                         )
+
+    #     return contribution_manager
+
     def collect_contributors_for_pr_commits(self) -> ContributionManager:
         contribution_manager = ContributionManager()
 
-        # PR Commits
         if Flags.has("authorship_for_pr_commits"):
 
             token = self.token
             repo = self.repo
-            base = self.base_branch
-            head = self.head_branch
+            pr_number = self.pr_number
             bot_blacklist = self.bot_blacklist
 
-            url = f"https://api.github.com/repos/{repo}/compare/{base}...{head}"
-            headers = {"Authorization": f"token {token}"}
-            r = requests.get(url, headers=headers)
+            session: requests.Session = self.get_github_session(token=token)
+
+            url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/commits"
+            r = session.get(url)
             r.raise_for_status()
-            data = r.json()
-            commits = data.get("commits", [])
+            commits = r.json()
 
             coauthor_regex = re.compile(
                 r"^Co-authored-by:\s*(.+?)\s*<(.+?)>$", re.IGNORECASE
@@ -297,6 +370,7 @@ class GitHubPullRequestManager(GitHubManager):
                             )
 
         return contribution_manager
+
 
     def post_pull_request_comment(self, comment_body: str):
         if Flags.has("post_pr_comment"):
