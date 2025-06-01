@@ -417,13 +417,10 @@ class CffManager:
                         cff_author=new_cff_author
                     )
                     already_in_cff_contributors.add(contributor)
-                    dup_msg = f"{identifier}: Already exists in CFF file."
-                    if Flags.has("duplicate_author_invalidates_pr"):
-                        logger.error(dup_msg)
-                    else:
-                        logger.warning(dup_msg)
-
+                    # Correct behavior: this is OK — the author is now in CFF
+                    logger.info(f"{identifier}: Already exists in CFF file — OK.")
                     continue
+                    
 
             cff["authors"].append(new_cff_author.cff_author_data)
 
