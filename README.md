@@ -10,7 +10,7 @@ This GitHub Action adds contributors to the `authors:` section of your `CITATION
 
 ## 🔧 Features
 
-- Updates `authors:` in `CITATION.cff` with contributors from PRs
+- Updates `authors` in CFF files (e.g. `CITATION.cff`) with contributors from PRs. Currently uses CFF version 1.2.0.
 - Customizable inclusive authorship. Allows a variety of contributors to become authors, including commit authors, commit co-authors, PR reviewers, linked issue authors, and linked issue commenters.
 - Enriches metadata using GitHub profiles and ORCID lookups
 - Skips duplicate authors using multiple identity checks
