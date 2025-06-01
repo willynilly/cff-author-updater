@@ -69,19 +69,19 @@ class GitHubPullRequestManager(GitHubManager):
                 "GitHubPullRequestManager only supports pull_request events."
             )
 
-    def get_linked_issues(self, session: requests.Session, repo: str, pr_number: str):
-        url: str = f"https://api.github.com/repos/{repo}/issues/{pr_number}/timeline"
-        headers: dict = {"Accept": "application/vnd.github.mockingbird-preview+json"}
-        response: requests.Response = session.get(url, headers=headers)
-        if response.status_code != 200:
-            return []
-        data = response.json()
-        return [
-            event["source"]["issue"]["number"]
-            for event in data
-            if event.get("event") == "cross-referenced"
-            and event.get("source", {}).get("issue", {}).get("pull_request") is None
-        ]
+    # def get_linked_issues(self, session: requests.Session, repo: str, pr_number: str):
+    #     url: str = f"https://api.github.com/repos/{repo}/issues/{pr_number}/timeline"
+    #     headers: dict = {"Accept": "application/vnd.github.mockingbird-preview+json"}
+    #     response: requests.Response = session.get(url, headers=headers)
+    #     if response.status_code != 200:
+    #         return []
+    #     data = response.json()
+    #     return [
+    #         event["source"]["issue"]["number"]
+    #         for event in data
+    #         if event.get("event") == "cross-referenced"
+    #         and event.get("source", {}).get("issue", {}).get("pull_request") is None
+    #     ]
 
     def collect_contributors_for_pr_reviews(self) -> ContributionManager:
         contribution_manager = ContributionManager()
