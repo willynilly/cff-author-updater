@@ -227,33 +227,7 @@ class CffManager:
             )
         return CffAuthorContributor(cff_author_data=new_cff_author_data)
 
-    def create_identifier_of_cff_author_for_logger(
-        self, cff_author: CffAuthorContributor
-    ):
-        a = cff_author.cff_author_data
-        if cff_author is None:
-            raise ValueError(
-                "Cannot create identifier for CFF Author: cff_author cannot be None."
-            )
-        if "alias" in a:
-            username: str | None = parse_github_username_from_github_profile_url(
-                url=a["alias"]
-            )
-            if username is None:
-                raise ValueError(
-                    f"Cannot create identifier for CFF Author: cff_author has an invalid github profile url {a['alias']}."
-                )
-            else:
-                return "@" + username
-        elif "email" in a:
-            return a["email"]
-        elif "name" in a:
-            return a["name"]
-        else:
-            raise ValueError(
-                "Cannot create identifier for CFF author: cff_author must have an alias, email, or name."
-            )
-
+    
     def validate_old_cff_authors_are_unique(
         self, cff: dict
     ) -> set[CffAuthorContributor]:
@@ -344,6 +318,8 @@ class CffManager:
         if not output_file:
             raise ValueError("Output file path is not provided.")
 
+        skip_commands: dict[str, set[str]] = self.github_pull_request_manager.scan_pr_comments_for_skip_commands()
+
         cffconvert_validation_errors: list[str] = []
 
         original_cff_is_valid_cff: bool = False
@@ -370,6 +346,12 @@ class CffManager:
         contributors: set[Contributor] = set(contribution_manager.contributors)
 
         for contributor in contributors:
+
+            if self.github_pull_request_manager.should_skip_contributor(contributor, skip_commands):
+                identifier = self.create_identifier_of_contributor_for_logger(contributor)
+                logger.info(f"Skipping contributor based on skip command: {identifier}")
+                continue
+
             new_cff_author: CffAuthorContributor | None = None
 
             if isinstance(contributor, GitHubContributor) or isinstance(
@@ -497,6 +479,73 @@ class CffManager:
             )
 
         return missing_authors, duplicate_authors, cffconvert_validation_errors
+
+    def create_identifier_of_contributor_for_logger(self, contributor: Contributor) -> str:
+        """
+        Returns a human-readable identifier string for this Contributor,
+        used in logging skip decisions.
+        """
+        if isinstance(contributor, GitHubContributor):
+            return f"@{contributor.github_username} (GitHub)"
+        elif isinstance(contributor, GitCommitContributor):
+            name = contributor.git_name or "unknown name"
+            email = contributor.git_email or "unknown email"
+            return f"{name} <{email}> (Git Commit)"
+        else:
+            return f"Unknown contributor type: {type(contributor).__name__}"
+
+    def create_identifier_of_cff_author_for_logger(self, cff_author: CffAuthorContributor) -> str:
+        """
+        Returns a human-readable identifier string for this CFF author,
+        used in logging duplicate detection and other checks.
+        """
+        if cff_author is None:
+            raise ValueError("Cannot create identifier for CFF Author: cff_author cannot be None.")
+
+        a = cff_author.cff_author_data
+
+        if "alias" in a:
+            username = parse_github_username_from_github_profile_url(url=a["alias"])
+            if username:
+                return f"@{username} (GitHub)"
+            else:
+                return f"{a['alias']} (Alias)"
+        elif "email" in a:
+            return f"{a['email']} (Email)"
+        elif "name" in a:
+            return f"{a['name']} (Name)"
+        else:
+            raise ValueError("Cannot create identifier for CFF author: must have alias, email, or name.")
+
+        
+    # def create_identifier_of_cff_author_for_logger(
+    #     self, cff_author: CffAuthorContributor
+    # ):
+    #     a = cff_author.cff_author_data
+    #     if cff_author is None:
+    #         raise ValueError(
+    #             "Cannot create identifier for CFF Author: cff_author cannot be None."
+    #         )
+    #     if "alias" in a:
+    #         username: str | None = parse_github_username_from_github_profile_url(
+    #             url=a["alias"]
+    #         )
+    #         if username is None:
+    #             raise ValueError(
+    #                 f"Cannot create identifier for CFF Author: cff_author has an invalid github profile url {a['alias']}."
+    #             )
+    #         else:
+    #             return "@" + username
+    #     elif "email" in a:
+    #         return a["email"]
+    #     elif "name" in a:
+    #         return a["name"]
+    #     else:
+    #         raise ValueError(
+    #             "Cannot create identifier for CFF author: cff_author must have an alias, email, or name."
+    #         )
+
+
 
     def create_json_for_contribution_manager(
         self, contribution_manager: ContributionManager

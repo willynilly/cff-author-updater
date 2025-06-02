@@ -19,6 +19,7 @@ from cff_author_updater.contributions.github_pull_request_issue_contribution imp
 from cff_author_updater.contributions.github_pull_request_review_contribution import (
     GitHubPullRequestReviewContribution,
 )
+from cff_author_updater.contributors.contributor import Contributor
 from cff_author_updater.contributors.git_commit_contributor import GitCommitContributor
 from cff_author_updater.contributors.github_contributor import (
     GitHubContributor,
@@ -486,6 +487,116 @@ class GitHubPullRequestManager(GitHubManager):
                             )
 
         return contribution_manager
+
+    def scan_pr_comments_for_skip_commands(self) -> dict[str, set[str]]:
+        """
+        Scans PR comments for skip-author and unskip-author commands.
+
+        Returns final skip state:
+        {
+            "orcid": set(),
+            "name": set(),
+            "email": set(),
+            "github-username": set(),
+        }
+        """
+        token = self.token
+        repo = self.repo
+        pr_number = self.pr_number
+
+        session: requests.Session = self.get_github_session(token=token)
+
+        comments_url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
+        response = session.get(comments_url)
+        response.raise_for_status()
+
+        comments = response.json()
+
+        # Initialize state tracking — value → skip=True/False
+        skip_state = {
+            "orcid": {},
+            "name": {},
+            "email": {},
+            "github-username": {},
+        }
+
+        # Sort comments oldest → newest by created_at
+        comments_sorted = sorted(comments, key=lambda c: c["created_at"])
+
+        for comment in comments_sorted:
+            body = comment.get("body", "")
+            for line in body.splitlines():
+                line = line.strip()
+
+                if line.startswith("skip-author-by-orcid"):
+                    value = line[len("skip-author-by-orcid"):].strip()
+                    skip_state["orcid"][value] = True
+
+                elif line.startswith("unskip-author-by-orcid"):
+                    value = line[len("unskip-author-by-orcid"):].strip()
+                    skip_state["orcid"][value] = False
+
+                elif line.startswith("skip-author-by-name"):
+                    value = line[len("skip-author-by-name"):].strip()
+                    skip_state["name"][value] = True
+
+                elif line.startswith("unskip-author-by-name"):
+                    value = line[len("unskip-author-by-name"):].strip()
+                    skip_state["name"][value] = False
+
+                elif line.startswith("skip-author-by-email"):
+                    value = line[len("skip-author-by-email"):].strip()
+                    skip_state["email"][value] = True
+
+                elif line.startswith("unskip-author-by-email"):
+                    value = line[len("unskip-author-by-email"):].strip()
+                    skip_state["email"][value] = False
+
+                elif line.startswith("skip-author-by-github-username"):
+                    value = line[len("skip-author-by-github-username"):].strip()
+                    skip_state["github-username"][value] = True
+
+                elif line.startswith("unskip-author-by-github-username"):
+                    value = line[len("unskip-author-by-github-username"):].strip()
+                    skip_state["github-username"][value] = False
+
+        # Final skip state — only values where latest command is skip=True
+        final_skips = {
+            field: set(value for value, skip in skip_state[field].items() if skip)
+            for field in skip_state
+        }
+
+        return final_skips
+
+    def should_skip_contributor(self, contributor: Contributor, skip_commands: dict[str, set[str]]) -> bool:
+        """
+        Returns True if this contributor should be skipped based on skip_commands.
+        """
+        if isinstance(contributor, GitHubContributor):
+            if contributor.github_username in skip_commands["github-username"]:
+                return True
+            
+
+        # if isinstance(contributor, GitCommitContributor):
+        #     github_username = None
+        #     if contributor.git_alias:
+        #         github_username = parse_github_username_from_github_profile_url(url=contributor.git_alias)
+        #     if github_username and github_username in skip_commands["github-username"]:
+        #         return True
+
+
+        if isinstance(contributor, GitCommitContributor):
+            if contributor.git_email in skip_commands["email"]:
+                return True
+            if contributor.git_name in skip_commands["name"]:
+                return True
+
+        # Example: if you add ORCID field later:
+        # if hasattr(contributor, "orcid"):
+        #     if contributor.orcid in skip_commands["orcid"]:
+        #         return True
+
+        return False
 
 
     def post_pull_request_comment(self, comment_body: str):

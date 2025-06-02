@@ -13,7 +13,7 @@ This GitHub Action adds contributors to the `authors:` section of your `CITATION
 - Updates `authors` in CFF files (e.g. `CITATION.cff`) with contributors from PRs. Currently uses CFF version 1.2.0.
 - Customizable inclusive authorship. Allows a variety of contributors to become authors, including commit authors, commit co-authors, PR reviewers, linked issue authors, and linked issue commenters.
 - Enriches metadata using GitHub profiles and ORCID lookups
-- Skips duplicate authors using multiple identity checks
+- Skips duplicate authors using multiple identity checks, with optional manual contributor overrides via PR comments (skip/unskip commands)
 - Posts a pull request comment with the proposed CFF content, which can be manually copied to update the `CITATION.cff`. The comment also contains a detailed breakdown of each new author's qualifying contributions, grouped by category (commits, PR comments, reviews, issues, etc.), with clickable links to each contribution. It also contains warnings and logging information to help provide context for authorship detection and processing.
 - Options for invalidating pull request when a new author is missing from the `CITATION.cff`, when there are duplicate authors, or when `cffconvert` fails to validate `CITATION.cff`.
 - Outputs updated `CITATION.cff` file, detailed contributions in a JSON file, validation metadata, and logs for other workflow steps to use.
@@ -217,6 +217,57 @@ Before adding a contributor, the following identifiers are checked against exist
 | 3️⃣ | Email | If both have email and it matches → same author |
 | 4️⃣ | Full Name (given-names + family-names, or entity `name`) | If full names match → same author |
 
+## ✋ Manual Overrides: Skip / Unskip Contributors
+
+In some cases, the GitHub Action may detect a contributor identity that is incorrect, duplicated, or that the maintainers do not wish to include as an author in the `CITATION.cff` file.
+
+To handle these cases, **maintainers can post PR comments with `skip-author` or `unskip-author` commands** to manually override contributor processing for that pull request.
+
+### Supported Commands
+
+You can skip or unskip contributors by writing a comment with one of these commands:
+
+| Command                              | Example |
+|--------------------------------------|---------|
+| `skip-author-by-github-username`      | `skip-author-by-github-username someuser` |
+| `unskip-author-by-github-username`    | `unskip-author-by-github-username someuser` |
+| `skip-author-by-email`                | `skip-author-by-email user@example.com` |
+| `unskip-author-by-email`              | `unskip-author-by-email user@example.com` |
+| `skip-author-by-name`                 | `skip-author-by-name John Doe` |
+| `unskip-author-by-name`               | `unskip-author-by-name John Doe` |
+| `skip-author-by-orcid`                | `skip-author-by-orcid https://orcid.org/0000-0000-0000-0000` |
+| `unskip-author-by-orcid`              | `unskip-author-by-orcid https://orcid.org/0000-0000-0000-0000` |
+
+
+### How manual overrides work
+
+- The Action scans **all PR comments**, ordered chronologically.
+- The most recent command for each contributor field wins.
+- If a contributor is currently skipped, the Action will:
+  - **Exclude them** from proposed CFF updates
+  - **Exclude them** from "missing author" checks
+  - **Exclude them** from duplicate checks
+- You can **change your mind** at any time by posting an `unskip-author` command.
+- Deleting a comment with a skip command works as if you never wrote that comment.
+- Deleting a comment with an unskip command works as if you never wrote that comment. 
+- You will need to manually restart the workflow or post another commit to the pull request for newly posted commands to take effect. Posting a pull request comment does not currently trigger the Github Action.
+- These commands only apply to new contributors on head branch (e.g., the forked branch you are trying to merge) of the pull request. They do not apply to old authors on the base branch (i.e. the branch into which the pull request merges).
+
+### Example of changing your mind with commands. 
+
+Here a contributor is skipped by email and then unskipped by email.
+
+```markdown
+skip-author-by-email user@example.com
+```
+
+```markdown
+unskip-author-by-email user@example.com
+```
+
+Note: You do not need to delete old comments — the Action will always apply the most recent command for each contributor field.
+
+
 ## 🛠 Developer Notes
 
 To run pytest tests, you must create a `.env` in the project folder
@@ -231,3 +282,4 @@ Licensed under the [Apache 2.0 License](LICENSE).
 Druskat, S., Spaaks, J. H., Chue Hong, N., Haines, R., Baker, J., Bliven, S.,
 Willighagen, E., Pérez-Suárez, D., & Konovalov, A. (2021). Citation File Format
 (Version 1.2.0) [Computer software]. <https://doi.org/10.5281/zenodo.5171937>
+
