@@ -61,6 +61,10 @@ inputs:
     description: Invalidate the pull request if cffconvert fails to validate the CFF file
     type: boolean
     default: true
+  can_skip_authorship:
+    description: Whether manually skipping and unskipping authorship is enabled or not
+    type: boolean
+    default: true
   bot_blacklist:
     description: 'Comma-separated list of bot usernames to ignore'
     required: false
@@ -115,5 +119,6 @@ runs:
         MISSING_AUTHOR_INVALIDATES_PR: ${{ inputs.missing_author_invalidates_pr }}
         DUPLICATE_AUTHOR_INVALIDATES_PR: ${{ inputs.duplicate_author_invalidates_pr }}
         INVALID_CFF_INVALIDATES_PR: ${{ inputs.invalid_cff_invalidates_pr }}
+        CAN_SKIP_AUTHORSHIP: ${{ inputs.can_skip_authorship }}
         BOT_BLACKLIST: ${{ inputs.bot_blacklist }}
         GITHUB_EVENT_PATH: ${{ github.event_path }}

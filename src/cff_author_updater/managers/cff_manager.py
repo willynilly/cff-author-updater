@@ -318,7 +318,9 @@ class CffManager:
         if not output_file:
             raise ValueError("Output file path is not provided.")
 
-        skip_commands: dict[str, set[str]] = self.github_pull_request_manager.scan_pr_comments_for_skip_commands()
+        skip_commands: dict[str, set[str]] = {}
+        if Flags.has("can_skip_authorship"):
+           skip_commands = self.github_pull_request_manager.scan_pr_comments_for_skip_commands()
 
         cffconvert_validation_errors: list[str] = []
 
@@ -387,6 +389,12 @@ class CffManager:
             if new_cff_author is None:
                 continue
             else:
+                # this checks the contributor for skipping after it has been enriched with orcid information 
+                if self.github_pull_request_manager.should_skip_contributor(contributor=new_cff_author, skip_commands=skip_commands):
+                    identifier = self.create_identifier_of_cff_author_for_logger(cff_author=new_cff_author)
+                    logger.info(f"Skipping contributor based on skip command: {identifier}")
+                    continue
+
                 if any(
                     new_cff_author.is_same_author(
                         cff_author=CffAuthorContributor(

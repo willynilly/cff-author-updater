@@ -19,6 +19,7 @@ from cff_author_updater.contributions.github_pull_request_issue_contribution imp
 from cff_author_updater.contributions.github_pull_request_review_contribution import (
     GitHubPullRequestReviewContribution,
 )
+from cff_author_updater.contributors.cff_author_contributor import CffAuthorContributor
 from cff_author_updater.contributors.contributor import Contributor
 from cff_author_updater.contributors.git_commit_contributor import GitCommitContributor
 from cff_author_updater.contributors.github_contributor import (
@@ -490,7 +491,7 @@ class GitHubPullRequestManager(GitHubManager):
 
     def scan_pr_comments_for_skip_commands(self) -> dict[str, set[str]]:
         """
-        Scans PR comments for skip-author and unskip-author commands.
+        Scans PR comments for skip-authorship and unskip-authorship commands.
 
         Returns final skip state:
         {
@@ -519,6 +520,7 @@ class GitHubPullRequestManager(GitHubManager):
             "email": {},
             "github-username": {},
         }
+        
 
         # Sort comments oldest → newest by created_at
         comments_sorted = sorted(comments, key=lambda c: c["created_at"])
@@ -528,36 +530,36 @@ class GitHubPullRequestManager(GitHubManager):
             for line in body.splitlines():
                 line = line.strip()
 
-                if line.startswith("skip-author-by-orcid"):
-                    value = line[len("skip-author-by-orcid"):].strip()
+                if line.startswith("skip-authorship-by-orcid"):
+                    value = line[len("skip-authorship-by-orcid"):].strip()
                     skip_state["orcid"][value] = True
 
-                elif line.startswith("unskip-author-by-orcid"):
-                    value = line[len("unskip-author-by-orcid"):].strip()
+                elif line.startswith("unskip-authorship-by-orcid"):
+                    value = line[len("unskip-authorship-by-orcid"):].strip()
                     skip_state["orcid"][value] = False
 
-                elif line.startswith("skip-author-by-name"):
-                    value = line[len("skip-author-by-name"):].strip()
+                elif line.startswith("skip-authorship-by-name"):
+                    value = line[len("skip-authorship-by-name"):].strip()
                     skip_state["name"][value] = True
 
-                elif line.startswith("unskip-author-by-name"):
-                    value = line[len("unskip-author-by-name"):].strip()
+                elif line.startswith("unskip-authorship-by-name"):
+                    value = line[len("unskip-authorship-by-name"):].strip()
                     skip_state["name"][value] = False
 
-                elif line.startswith("skip-author-by-email"):
-                    value = line[len("skip-author-by-email"):].strip()
+                elif line.startswith("skip-authorship-by-email"):
+                    value = line[len("skip-authorship-by-email"):].strip()
                     skip_state["email"][value] = True
 
-                elif line.startswith("unskip-author-by-email"):
-                    value = line[len("unskip-author-by-email"):].strip()
+                elif line.startswith("unskip-authorship-by-email"):
+                    value = line[len("unskip-authorship-by-email"):].strip()
                     skip_state["email"][value] = False
 
-                elif line.startswith("skip-author-by-github-username"):
-                    value = line[len("skip-author-by-github-username"):].strip()
+                elif line.startswith("skip-authorship-by-github-username"):
+                    value = line[len("skip-authorship-by-github-username"):].strip()
                     skip_state["github-username"][value] = True
 
-                elif line.startswith("unskip-author-by-github-username"):
-                    value = line[len("unskip-author-by-github-username"):].strip()
+                elif line.startswith("unskip-authorship-by-github-username"):
+                    value = line[len("unskip-authorship-by-github-username"):].strip()
                     skip_state["github-username"][value] = False
 
         # Final skip state — only values where latest command is skip=True
@@ -572,8 +574,29 @@ class GitHubPullRequestManager(GitHubManager):
         """
         Returns True if this contributor should be skipped based on skip_commands.
         """
+
+        if not Flags.has("can_skip_authorship"):
+            return False
+
         if isinstance(contributor, GitHubContributor):
             if contributor.github_username in skip_commands["github-username"]:
+                return True
+            
+        if isinstance(contributor, GitCommitContributor):
+            if contributor.git_email in skip_commands["email"]:
+                return True
+            if contributor.git_name in skip_commands["name"]:
+                return True
+            
+        if isinstance(contributor, CffAuthorContributor):
+            if contributor.cff_author_data.get('alias', '') in skip_commands["orcid"]:
+                return True
+            if contributor.cff_author_data.get('email', '') in skip_commands["email"]:
+                return True
+            if contributor.cff_author_data.get('name', '') in skip_commands["name"]:
+                return True
+            full_name:str = contributor.cff_author_data.get('given-names', '') + ' ' + contributor.cff_author_data.get('family-names', '')
+            if full_name in skip_commands["name"]:
                 return True
             
 
@@ -585,11 +608,7 @@ class GitHubPullRequestManager(GitHubManager):
         #         return True
 
 
-        if isinstance(contributor, GitCommitContributor):
-            if contributor.git_email in skip_commands["email"]:
-                return True
-            if contributor.git_name in skip_commands["name"]:
-                return True
+
 
         # Example: if you add ORCID field later:
         # if hasattr(contributor, "orcid"):

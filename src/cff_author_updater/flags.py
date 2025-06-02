@@ -38,6 +38,10 @@ class Flags:
             "INVALID_CFF_INVALIDATES_PR", "true"
         ).casefold()
         == "true",
+        "can_skip_authorship": os.environ.get(
+            "CAN_SKIP_AUTHORSHIP", "true"
+        ).casefold()
+        == "true",
     }
 
     @classmethod

@@ -69,6 +69,7 @@ jobs:
           missing_author_invalidates_pr: true
           duplicate_author_invalidates_pr: true
           invalid_cff_invalidates_pr: true
+          can_skip_authorship: true
           bot_blacklist: github-actions[bot]
 ```
 
@@ -91,6 +92,7 @@ jobs:
 | `missing_author_invalidates_pr`  | Invalidate the pull request if a new author is missing from the CFF file                       | ❌ No    | `true`                 |
 | `duplicate_author_invalidates_pr`  | Invalidate the pull request if there is a duplicate author in the CFF file                       | ❌ No    | `true`                 |
 | `invalid_cff_invalidates_pr`  | Invalidate the pull request if cffconvert fails to validate the CFF file                       | ❌ No    | `true`                 |
+| `can_skip_authorship`  | Whether manually skipping and unskipping authorship is enabled or not                       | ❌ No    | `true`                 |
 | `bot_blacklist`              | Comma-separated GitHub usernames to exclude from authorship      | ❌ No    | `github-actions[bot]`  |
 
 **Note:** When `invalid_cff_invalidates_pr` is enabled, the pull request will be invalidated (workflow will fail) if `cffconvert` reports any validation errors on the CFF file.  
@@ -217,37 +219,37 @@ Before adding a contributor, the following identifiers are checked against exist
 | 3️⃣ | Email | If both have email and it matches → same author |
 | 4️⃣ | Full Name (given-names + family-names, or entity `name`) | If full names match → same author |
 
-## ✋ Manual Overrides: Skip / Unskip Contributors
+## ✋ Manual Overrides: Skip / Unskip Contributors for Authorship
 
 In some cases, the GitHub Action may detect a contributor identity that is incorrect, duplicated, or that the maintainers do not wish to include as an author in the `CITATION.cff` file.
 
-To handle these cases, **maintainers can post PR comments with `skip-author` or `unskip-author` commands** to manually override contributor processing for that pull request.
+To handle these cases, **maintainers can post PR comments with `skip-authorship` or `unskip-authorship` commands** to manually override contributor processing for that pull request.
 
 ### Supported Commands
 
-You can skip or unskip contributors by writing a comment with one of these commands:
+You can skip or unskip contributors for authorship by writing a comment with one of these commands:
 
 | Command                              | Example |
 |--------------------------------------|---------|
-| `skip-author-by-github-username`      | `skip-author-by-github-username someuser` |
-| `unskip-author-by-github-username`    | `unskip-author-by-github-username someuser` |
-| `skip-author-by-email`                | `skip-author-by-email user@example.com` |
-| `unskip-author-by-email`              | `unskip-author-by-email user@example.com` |
-| `skip-author-by-name`                 | `skip-author-by-name John Doe` |
-| `unskip-author-by-name`               | `unskip-author-by-name John Doe` |
-| `skip-author-by-orcid`                | `skip-author-by-orcid https://orcid.org/0000-0000-0000-0000` |
-| `unskip-author-by-orcid`              | `unskip-author-by-orcid https://orcid.org/0000-0000-0000-0000` |
+| `skip-authorship-by-github-username`      | `skip-authorship-by-github-username someuser` |
+| `unskip-authorship-by-github-username`    | `unskip-authorship-by-github-username someuser` |
+| `skip-authorship-by-email`                | `skip-authorship-by-email user@example.com` |
+| `unskip-authorship-by-email`              | `unskip-authorship-by-email user@example.com` |
+| `skip-authorship-by-name`                 | `skip-authorship-by-name John Doe` |
+| `unskip-authorship-by-name`               | `unskip-authorship-by-name John Doe` |
+| `skip-authorship-by-orcid`                | `skip-authorship-by-orcid https://orcid.org/0000-0000-0000-0000` |
+| `unskip-authorship-by-orcid`              | `unskip-authorship-by-orcid https://orcid.org/0000-0000-0000-0000` |
 
 
 ### How manual overrides work
 
 - The Action scans **all PR comments**, ordered chronologically.
 - The most recent command for each contributor field wins.
-- If a contributor is currently skipped, the Action will:
+- If a contributor is currently skipped for authorship, the Action will:
   - **Exclude them** from proposed CFF updates
   - **Exclude them** from "missing author" checks
   - **Exclude them** from duplicate checks
-- You can **change your mind** at any time by posting an `unskip-author` command.
+- You can **change your mind** at any time by posting an `unskip-authorship` command.
 - Deleting a comment with a skip command works as if you never wrote that comment.
 - Deleting a comment with an unskip command works as if you never wrote that comment. 
 - You will need to manually restart the workflow or post another commit to the pull request for newly posted commands to take effect. Posting a pull request comment does not currently trigger the Github Action.
@@ -258,11 +260,11 @@ You can skip or unskip contributors by writing a comment with one of these comma
 Here a contributor is skipped by email and then unskipped by email.
 
 ```markdown
-skip-author-by-email user@example.com
+skip-authorship-by-email user@example.com
 ```
 
 ```markdown
-unskip-author-by-email user@example.com
+unskip-authorship-by-email user@example.com
 ```
 
 Note: You do not need to delete old comments — the Action will always apply the most recent command for each contributor field.
