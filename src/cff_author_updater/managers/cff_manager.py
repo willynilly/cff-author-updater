@@ -16,7 +16,7 @@ from cff_author_updater.contributors.contributor import Contributor
 from cff_author_updater.contributors.git_commit_contributor import GitCommitContributor
 from cff_author_updater.contributors.github_contributor import (
     GitHubContributor,
-    parse_github_username_from_github_profile_url,
+    parse_github_username_from_github_user_profile_url,
 )
 from cff_author_updater.flags import Flags
 from cff_author_updater.logging_config import get_log_collector
@@ -513,7 +513,7 @@ class CffManager:
         a = cff_author.cff_author_data
 
         if "alias" in a:
-            username = parse_github_username_from_github_profile_url(url=a["alias"])
+            username = parse_github_username_from_github_user_profile_url(url=a["alias"])
             if username:
                 return f"@{username} (GitHub)"
             else:

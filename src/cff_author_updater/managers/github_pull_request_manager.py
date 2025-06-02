@@ -24,6 +24,7 @@ from cff_author_updater.contributors.contributor import Contributor
 from cff_author_updater.contributors.git_commit_contributor import GitCommitContributor
 from cff_author_updater.contributors.github_contributor import (
     GitHubContributor,
+    create_github_user_profile_url,
 )
 from cff_author_updater.flags import Flags
 from cff_author_updater.managers.contribution_manager import ContributionManager
@@ -70,20 +71,6 @@ class GitHubPullRequestManager(GitHubManager):
             raise Exception(
                 "GitHubPullRequestManager only supports pull_request events."
             )
-
-    # def get_linked_issues(self, session: requests.Session, repo: str, pr_number: str):
-    #     url: str = f"https://api.github.com/repos/{repo}/issues/{pr_number}/timeline"
-    #     headers: dict = {"Accept": "application/vnd.github.mockingbird-preview+json"}
-    #     response: requests.Response = session.get(url, headers=headers)
-    #     if response.status_code != 200:
-    #         return []
-    #     data = response.json()
-    #     return [
-    #         event["source"]["issue"]["number"]
-    #         for event in data
-    #         if event.get("event") == "cross-referenced"
-    #         and event.get("source", {}).get("issue", {}).get("pull_request") is None
-    #     ]
 
     def collect_contributors_for_pr_reviews(self) -> ContributionManager:
         contribution_manager = ContributionManager()
@@ -341,81 +328,6 @@ class GitHubPullRequestManager(GitHubManager):
         return issues
 
 
-    # def collect_contributors_for_pr_commits(self) -> ContributionManager:
-    #     contribution_manager = ContributionManager()
-
-    #     # PR Commits
-    #     if Flags.has("authorship_for_pr_commits"):
-
-    #         token = self.token
-    #         repo = self.repo
-    #         base = self.base_branch
-    #         head = self.head_branch
-    #         bot_blacklist = self.bot_blacklist
-
-    #         url = f"https://api.github.com/repos/{repo}/compare/{base}...{head}"
-    #         headers = {"Authorization": f"token {token}"}
-    #         r = requests.get(url, headers=headers)
-    #         r.raise_for_status()
-    #         data = r.json()
-    #         commits = data.get("commits", [])
-
-    #         coauthor_regex = re.compile(
-    #             r"^Co-authored-by:\s*(.+?)\s*<(.+?)>$", re.IGNORECASE
-    #         )
-
-    #         for c in commits:
-    #             sha = c.get("sha")
-    #             commit_author_data = c.get("commit", {}).get("author", {})
-    #             github_author = c.get("author")
-
-    #             commit_date_str = commit_author_data.get("date")
-    #             commit_date = (
-    #                 datetime.strptime(commit_date_str, "%Y-%m-%dT%H:%M:%SZ")
-    #                 if commit_date_str
-    #                 else datetime.min
-    #             )
-
-    #             if github_author and github_author.get("login"):
-    #                 username = github_author["login"]
-    #                 if username not in bot_blacklist:
-    #                     contributor = GitHubContributor(github_username=username)
-    #                     contribution = GitHubPullRequestCommitContribution(
-    #                         sha=sha, created_at=commit_date
-    #                     )
-    #                     contribution_manager.add_contribution(contribution, contributor)
-    #             elif commit_author_data:
-    #                 name = commit_author_data.get("name")
-    #                 if name in bot_blacklist:
-    #                     continue
-    #                 email = commit_author_data.get("email")
-    #                 if name or email:
-    #                     contributor = GitCommitContributor(
-    #                         git_name=name.strip(), git_email=email.strip()
-    #                     )
-    #                     contribution = GitHubPullRequestCommitContribution(
-    #                         sha=sha, created_at=commit_date
-    #                     )
-    #                     contribution_manager.add_contribution(contribution, contributor)
-
-    #             # add coauthors
-    #             for line in c.get("commit", {}).get("message", "").splitlines():
-    #                 match = coauthor_regex.match(line.strip())
-    #                 if match:
-    #                     name, email = match.groups()
-    #                     if name not in bot_blacklist:
-    #                         contributor = GitCommitContributor(
-    #                             git_name=name.strip(), git_email=email.strip()
-    #                         )
-    #                         contribution = GitHubPullRequestCommitContribution(
-    #                             sha=sha, created_at=commit_date
-    #                         )
-    #                         contribution_manager.add_contribution(
-    #                             contribution, contributor
-    #                         )
-
-    #     return contribution_manager
-
     def collect_contributors_for_pr_commits(self) -> ContributionManager:
         contribution_manager = ContributionManager()
 
@@ -589,7 +501,10 @@ class GitHubPullRequestManager(GitHubManager):
                 return True
             
         if isinstance(contributor, CffAuthorContributor):
-            if contributor.cff_author_data.get('alias', '') in skip_commands["orcid"]:
+            if contributor.cff_author_data.get('orcid', '') in skip_commands["orcid"]:
+                return True
+            skip_github_user_profile_urls: list[str] = [create_github_user_profile_url(github_username) for github_username in skip_commands["github-username"]]
+            if contributor.cff_author_data.get('alias', '') in skip_github_user_profile_urls:
                 return True
             if contributor.cff_author_data.get('email', '') in skip_commands["email"]:
                 return True
@@ -606,9 +521,6 @@ class GitHubPullRequestManager(GitHubManager):
         #         github_username = parse_github_username_from_github_profile_url(url=contributor.git_alias)
         #     if github_username and github_username in skip_commands["github-username"]:
         #         return True
-
-
-
 
         # Example: if you add ORCID field later:
         # if hasattr(contributor, "orcid"):
