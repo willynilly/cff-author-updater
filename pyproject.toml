@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cff-author-updater"
-version = "2.0.0"
+version = "2.1.0"
 description = "GitHub Action to update authors in CITATION.cff file based on pull request contributions. It posts a pull request comment with updated CFF and qualifying contributions from new authors."
 readme = "README.md"
 requires-python = ">=3.13"
