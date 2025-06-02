@@ -1,6 +1,9 @@
+import logging
 import re
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 class OrcidManager:
@@ -25,9 +28,7 @@ class OrcidManager:
         except Exception:
             return False
 
-    def search_orcid(
-        self, full_name: str, email: str | None = None, logs: list | None = None
-    ):
+    def search_orcid(self, full_name: str, email: str | None = None):
         headers: dict = {"Accept": "application/vnd.orcid+json"}
         name_parts: list[str] = full_name.strip().split(" ", 1)
         given: str = name_parts[0] if len(name_parts) > 0 else ""
@@ -69,16 +70,14 @@ class OrcidManager:
                     + [combined.casefold()]
                 )
                 if target in possibilities:
-                    log = f"- `{full_name}` matched to ORCID `{orcid_id}` (record name: **{credit_name or combined}**)"
-                    if logs is not None:
-                        logs.append(log)
+                    logger.info(
+                        f"`{full_name}` matched to ORCID `{orcid_id}` (record name: **{credit_name or combined}**)"
+                    )
                     return orcid_id
                 else:
-                    if logs is not None:
-                        logs.append(
-                            f"- `{full_name}`: ORCID `{orcid_id}` found but name mismatch"
-                        )
+                    logger.warning(
+                        f"`{full_name}`: ORCID `{orcid_id}` found but name mismatch"
+                    )
         except Exception as e:
-            if logs is not None:
-                logs.append(f"- `{full_name}`: ORCID search failed: {e}")
+            logger.warning(f"`{full_name}`: ORCID search failed: {e}")
         return None

@@ -16,12 +16,41 @@ abstract: >-
 keywords:
   - CFF
   - citation
-  - Github
+  - GitHub
   - metadata
 license: Apache-2.0
-version: "1.0.0"
-date-released: "2025-05-20"
+version: "2.0.0"
+date-released: "2025-05-27"
 references:
+  - title: cffconvert
+    version: 2.0.0
+    type: software
+    abstract: Command line program to validate and convert CITATION.cff files.
+    authors:
+      - affiliation: Netherlands eScience Center
+        family-names: Spaaks
+        given-names: Jurriaan H.
+        orcid: https://orcid.org/0000-0002-7064-4069
+      - affiliation: Netherlands eScience Center
+        family-names: Klaver
+        given-names: Tom
+      - affiliation: Netherlands eScience Center
+        family-names: Verhoeven
+        given-names: Stefan
+        orcid: https://orcid.org/0000-0002-5821-2060
+      - affiliation: Humboldt-Universität zu Berlin
+        family-names: Druskat
+        given-names: Stephan
+        orcid: https://orcid.org/0000-0003-4925-7248
+      - affiliation: University of Oslo
+        family-names: Leoncio
+        given-names: Waldir
+        name-suffix: Netto
+    date-released: 2021-09-22
+    doi: 10.5281/zenodo.5521767
+    license: Apache-2.0
+    repository-artifact: https://pypi.org/project/cffconvert
+    repository-code: https://github.com/citation-file-format/cff-converter-python
   - title: Citation File Format
     version: 1.2.0
     type: standard

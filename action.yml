@@ -19,7 +19,7 @@ inputs:
     required: false
     type: string
     default: CITATION.cff
-  post_comment:
+  post_pr_comment:
     description: Whether to post a pull request comment (true/false)
     required: false
     type: boolean
@@ -44,13 +44,25 @@ inputs:
     required: false
     type: boolean
     default: true
-  authorship_for_pr_comment:
+  authorship_for_pr_comments:
     description: Include users who comment directly on the PR as authors
     required: false
     type: boolean
     default: true
   missing_author_invalidates_pr:
-    description: Invalidate pull request if a new author is missing from the CFF
+    description: Invalidate pull request if a new author is missing from the CFF file
+    type: boolean
+    default: true
+  duplicate_author_invalidates_pr:
+    description: Invalidate the pull request if there is a duplicate author in the CFF file
+    type: boolean
+    default: true
+  invalid_cff_invalidates_pr:
+    description: Invalidate the pull request if cffconvert fails to validate the CFF file
+    type: boolean
+    default: true
+  can_skip_authorship:
+    description: Whether manually skipping and unskipping authorship is enabled or not
     type: boolean
     default: true
   bot_blacklist:
@@ -61,25 +73,36 @@ inputs:
 outputs:
   new_authors:
     description: New authors and qualifying contributions in JSON
+  original_cff:
+    description: Full original CFF content in YAML
+  original_cff_is_valid_cff:
+    description: Whether the original CFF file has valid CFF according to cffconvert ('true' or 'false')
   updated_cff:
-    description: Full updated CFF content
-  warnings:
-    description: Contributors skipped or added without metadata
-  orcid_logs:
-    description: ORCID match attempt logs
+    description: Full updated CFF content in YAML. If no changes, this will be the same as the original CFF file.
+  updated_cff_is_valid_cff:
+    description: Whether the updated CFF file has valid CFF according to cffconvert ('true' or 'false')
+  updated_cff_has_error:
+    description: Whether the updated CFF file has an error ('true' or 'false'). An error invalidates the pull request.
+  updated_cff_has_warning:
+    description: Whether the updated CFF file has an error ('true' or 'false'). A warning does not invalidate the pull request.
+  error_log:
+    description: Log that contains errors about the CFF author update process.
+  warning_log:
+    description: Log that contains warnings about the CFF author update process.
+  info_log:
+    description: Log that contains general information about the CFF author update process.
 
 runs:
   using: "composite"
   steps:
-    - uses: actions/setup-python@v4
-      with:
-        python-version: "3.x"
 
-    - run: pip install requests pyyaml cffconvert
+    - name: Install action with pip
+      run: pip install --force-reinstall ${{ github.action_path }} # the --force-reinstall avoids caching issues from external dependencies which may rely on this action
       shell: bash
 
-    - id: update_cff_authors
-      run: python ${{ github.action_path }}/main.py
+    - name: Update CFF authors
+      id: update_cff_authors
+      run: cff-author-updater
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
@@ -87,12 +110,15 @@ runs:
         BASE_BRANCH: ${{ inputs.base_branch }}
         HEAD_BRANCH: ${{ inputs.head_branch }}
         CFF_PATH: ${{ inputs.cff_path }}
-        POST_COMMENT: ${{ inputs.post_comment }}
+        POST_PR_COMMENT: ${{ inputs.post_pr_comment }}
         AUTHORSHIP_FOR_PR_COMMITS: ${{ inputs.authorship_for_pr_commits }}
         AUTHORSHIP_FOR_PR_REVIEWS: ${{ inputs.authorship_for_pr_reviews }}
         AUTHORSHIP_FOR_PR_ISSUES: ${{ inputs.authorship_for_pr_issues }}
         AUTHORSHIP_FOR_PR_ISSUE_COMMENTS: ${{ inputs.authorship_for_pr_issue_comments }}
-        AUTHORSHIP_FOR_PR_COMMENT: ${{ inputs.authorship_for_pr_comment }}
+        AUTHORSHIP_FOR_PR_COMMENTS: ${{ inputs.authorship_for_pr_comments }}
         MISSING_AUTHOR_INVALIDATES_PR: ${{ inputs.missing_author_invalidates_pr }}
+        DUPLICATE_AUTHOR_INVALIDATES_PR: ${{ inputs.duplicate_author_invalidates_pr }}
+        INVALID_CFF_INVALIDATES_PR: ${{ inputs.invalid_cff_invalidates_pr }}
+        CAN_SKIP_AUTHORSHIP: ${{ inputs.can_skip_authorship }}
         BOT_BLACKLIST: ${{ inputs.bot_blacklist }}
         GITHUB_EVENT_PATH: ${{ github.event_path }}

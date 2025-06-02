@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cff-author-updater"
+version = "2.0.0"
+description = "GitHub Action to update authors in CITATION.cff file based on pull request contributions. It posts a pull request comment with updated CFF and qualifying contributions from new authors."
+readme = "README.md"
+requires-python = ">=3.13"
+license = "Apache-2.0"
+license-files = ["LICEN[CS]E*"]
+keywords = ["CFF", "citation", "GitHub", "metadata"]
+authors = [
+  { name = "Will Riley", email = "wanderingwill@gmail.com" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development",
+    "Topic :: Utilities"
+]
+dependencies = ["requests>=2.32.3", "cffconvert>=2.0.0", "pyyaml>=6.0.2"]
+
+[project.urls]
+Homepage = "https://github.com/willynilly/cff-author-updater"
+Documentation = "https://github.com/willynilly/cff-author-updater#readme"
+Issues = "https://github.com/willynilly/cff-author-updater/issues"
+Source = "https://github.com/willynilly/cff-author-updater"
+
+[project.optional-dependencies]
+testing = [
+    "pytest>=8.3.5",
+]
+dev = [
+    "ruff>=0.11.12",
+]
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "src"
+]
+
+[tool.hatch.build]
+include = ["src/cff_author_updater/**", "CITATION.cff"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cff_author_updater"]
+
+[project.scripts]
+cff-author-updater = "cff_author_updater.main:main"

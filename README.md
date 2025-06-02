@@ -4,19 +4,19 @@
 
 This GitHub Action adds contributors to the `authors:` section of your `CITATION.cff` file by analyzing pull requests and adding new contributors as authors. Contributors include: commit authors, commit co-authors, pull request reviewers, commenters on issues linked to the pull request, and comments on the pull request itself. You can customize which kinds of contributors can become authors. The action also enriches contributor metadata using GitHub and ORCID.
 
-🛑 **Note:** This action does not modify your repository directly. It posts a comment on the pull request that include a block with your `CITATION.cff` file updated with new authors from that pull request. This comment also includes a detailed list of each new author's contributions (with links) that qualified them for authorship.
+🛑 **Note:** This action does not modify your repository directly. It posts a comment on the pull request that includes a block with your `CITATION.cff` file updated with new authors from that pull request. This comment also includes a detailed list of each new author's contributions (with links) that qualified them for authorship.
 
 ---
 
 ## 🔧 Features
 
-- Updates `authors:` in `CITATION.cff` with contributors from PRs
+- Updates `authors` in CFF files (e.g. `CITATION.cff`) with contributors from PRs. Currently uses CFF version 1.2.0.
 - Customizable inclusive authorship. Allows a variety of contributors to become authors, including commit authors, commit co-authors, PR reviewers, linked issue authors, and linked issue commenters.
 - Enriches metadata using GitHub profiles and ORCID lookups
-- Skips duplicate authors using multiple identity checks
+- Skips duplicate authors using multiple identity checks, with optional manual contributor overrides via PR comments (skip/unskip commands)
 - Posts a pull request comment with the proposed CFF content, which can be manually copied to update the `CITATION.cff`. The comment also contains a detailed breakdown of each new author's qualifying contributions, grouped by category (commits, PR comments, reviews, issues, etc.), with clickable links to each contribution. It also contains warnings and logging information to help provide context for authorship detection and processing.
-- Optionally invalidates pull request when a new author is missing from the `CITATION.cff`.
-- Outputs updated `CITATION.cff` file and detailed constributions in a JSON file for other workflow steps to use.
+- Options for invalidating pull request when a new author is missing from the `CITATION.cff`, when there are duplicate authors, or when `cffconvert` fails to validate `CITATION.cff`.
+- Outputs updated `CITATION.cff` file, detailed contributions in a JSON file, validation metadata, and logs for other workflow steps to use.
 
 ---
 
@@ -46,21 +46,30 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
+      
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ">=3.13.3" # required for cff-author-updater
+          cache: 'pip' # optional for cff-author-updater
 
       - name: Run cff-author-updater
-        uses: willynilly/cff-author-updater@v1.0.0
+        uses: willynilly/cff-author-updater@v2.0.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           base_branch: main
           head_branch: ${{ github.head_ref }}
           cff_path: CITATION.cff
-          post_comment: true
+          post_pr_comment: true
           authorship_for_pr_commits: true
           authorship_for_pr_reviews: true
           authorship_for_pr_issues: true
           authorship_for_pr_issue_comments: true
-          authorship_for_pr_comment: true
+          authorship_for_pr_comments: true
           missing_author_invalidates_pr: true
+          duplicate_author_invalidates_pr: true
+          invalid_cff_invalidates_pr: true
+          can_skip_authorship: true
           bot_blacklist: github-actions[bot]
 ```
 
@@ -74,14 +83,28 @@ jobs:
 | `base_branch`                 | Base branch of the PR                                            | ✅ Yes   | —                      |
 | `head_branch`                 | Source branch of the PR                                          | ✅ Yes   | —                      |
 | `cff_path`                    | Path to your `CITATION.cff` file                                 | ❌ No    | `CITATION.cff`         |
-| `post_comment`                | Whether to comment the updated CFF file on the PR                | ❌ No    | `true`                 |                 |
+| `post_pr_comment`                | Whether to comment the updated CFF file on the PR                | ❌ No    | `true`                 |                 |
 | `authorship_for_pr_commits`  | Include commit authors and co-authors as authors                     | ❌ No    | `true`                 |
 | `authorship_for_pr_reviews`  | Include users who reviewed the PR as authors                                   | ❌ No    | `true`                 |
 | `authorship_for_pr_issues`   | Include authors of issues linked to the PR as authors                           | ❌ No    | `true`                 |
 | `authorship_for_pr_issue_comments` | Include users who commented on linked issues as authors                 | ❌ No    | `true`                 |
-| `authorship_for_pr_comment`  | Include users who commented directly on the PR as authors                      | ❌ No    | `true`                 |
+| `authorship_for_pr_comments`  | Include users who commented directly on the PR as authors                      | ❌ No    | `true`                 |
 | `missing_author_invalidates_pr`  | Invalidate the pull request if a new author is missing from the CFF file                       | ❌ No    | `true`                 |
+| `duplicate_author_invalidates_pr`  | Invalidate the pull request if there is a duplicate author in the CFF file                       | ❌ No    | `true`                 |
+| `invalid_cff_invalidates_pr`  | Invalidate the pull request if cffconvert fails to validate the CFF file                       | ❌ No    | `true`                 |
+| `can_skip_authorship`  | Whether manually skipping and unskipping authorship is enabled or not                       | ❌ No    | `true`                 |
 | `bot_blacklist`              | Comma-separated GitHub usernames to exclude from authorship      | ❌ No    | `github-actions[bot]`  |
+
+**Note:** When `invalid_cff_invalidates_pr` is enabled, the pull request will be invalidated (workflow will fail) if `cffconvert` reports any validation errors on the CFF file.  
+Typical reasons for `cffconvert` validation failure include:
+- Duplicate authors (e.g. same ORCID, same author block)
+- Invalid or missing required fields (violating Citation File Format spec)
+- Incorrect field formats (e.g. malformed ORCID URL)
+
+Any `cffconvert` errors will also appear in the pull request comment under the **Warnings** section.
+
+The `invalid_cff_invalidates_pr` flag enforces the official CFF format standard (as validated by `cffconvert`).  
+The `missing_author_invalidates_pr` and `duplicate_author_invalidates_pr` flags provide **additional semantic validation** beyond the CFF format. They use the **Deduplication Strategy** described below.
 
 ---
 
@@ -90,9 +113,15 @@ jobs:
 | Name           | Description                                      |
 |----------------|--------------------------------------------------|
 | `new_authors`  | New authors and qualifying contributions in JSON |
-| `updated_cff`  | Full content of the updated CFF file             |
-| `warnings`     | Skipped or incomplete author entries             |
-| `orcid_logs`   | Logs of ORCID match attempts                     |
+| `original_cff`  | Full original CFF content in YAML             |
+| `original_cff_is_valid_cff`  | Whether the original CFF file has valid CFF according to cffconvert ('true' or 'false')       |
+| `updated_cff`  | Full updated CFF content in YAML. If no changes, this will be the same as the original CFF file.             |
+| `updated_cff_is_valid_cff`  | Whether the updated CFF file has valid CFF according to cffconvert ('true' or 'false')             |
+| `updated_cff_has_error`  | Whether the updated CFF file has an error ('true' or 'false'). An error invalidates the pull request.             |
+| `updated_cff_has_warning`  | Whether the updated CFF file has an error ('true' or 'false'). A warning does not invalidate the pull request.             |
+| `error_log`   | Log that contains errors about the CFF author update process.             |
+| `warning_log` | Log that contains warnings about the CFF author update process.             |
+| `info_log`    | Log that contains general information about the CFF author update process.                     |
 
 ---
 
@@ -101,15 +130,15 @@ jobs:
 To use this action in your repository:
 
 - ✅ A `CITATION.cff` file must exist at the root of your repository, or you must specify a custom path using the `cff_path` input.
-- ✅ Python is automatically set up by the action using `actions/setup-python`.
+- ✅ Python version 3.13 or higher needs to be configured in your workflow (e.g., using `setup-python@v5`). See the **Example Workflow** above.
 - ✅ You must pass GitHub’s built-in `${{ secrets.GITHUB_TOKEN }}` to the `github_token` input.
 - ✅ You must reference this action in your workflow as:
 
   ```yaml
-  uses: willynilly/action-update-cff-authors@v1.0.0
+  uses: willynilly/cff-author-updater@v2.0.0
   ```
 
-- ✅ For reproducibility, it is recommended to use version tags like `@v1.0.0`.
+- ✅ For reproducibility, it is recommended to use version tags like `@v2.0.0`.
 
 ---
 
@@ -138,7 +167,7 @@ When a contributor is associated with a GitHub account:
 If a commit or co-author entry lacks a GitHub account (i.e. appears as a raw name/email):
 
 - These are **initially treated as `entities`**.
-- If both a name and email are present, and the contributor matches an existing `person`, they are promoted to `person`.
+- If both a name and email are present, and the contributor matches an existing `person`, they are identified as that person.
 - If a name has only a single part (e.g. no `family-names`), the contributor is **retained as an `entity`**, and a warning is posted with the commit SHA.
 - If only an email is provided (no name), the contributor is skipped with a warning.
 - ORCID search is attempted to enrich metadata when a name is full enough (two parts).
@@ -173,44 +202,73 @@ If a commit or co-author entry lacks a GitHub account (i.e. appears as a raw nam
 
 ### Deduplication Strategy
 
-Before adding a contributor, the following identifiers are checked against existing CFF `authors:`:
+Before adding a contributor, the following identifiers are checked against existing CFF `authors:` **in this order**:
 
-1. ORCID
-2. Email address
-3. GitHub user profile URL as `alias` (if available)
-4. Full name (`given-names` + `family-names`)
-5. Entity name
+1. **ORCID:** If both authors have an ORCID and they match, they are considered the same.
+2. **Email:** If both authors have an email and they match, they are considered the same.
+3. **GitHub user profile URL as `alias`:** If both authors have an `alias` that is a GitHub user profile URL and they match, they are considered the same.
+4. **Full name:** If both authors have a full name (for persons: `given-names` + `family-names`; for entities: `name`) and they match (case-insensitive, whitespace-insensitive), they are considered the same author.
 
-A contributor is only added if **none of the above match**.
 
-#### Author Type Enforcement
+### 🔍 Deduplication Algorithm Summary
 
-- Contributors **must have both a given name and family name** to be treated as a `person`.
-- If only a single name part is available (e.g., "Plato"), the contributor is recorded as an `entity`.
-- This prevents ambiguity and ensures consistent deduplication behavior.
+| Priority | Matching Field | Behavior |
+|----------|----------------|----------|
+| 1️⃣ | ORCID | If both have ORCID and it matches → same author |
+| 2️⃣ | GitHub `alias` (GitHub profile URL) | If both have alias and it matches → same author |
+| 3️⃣ | Email | If both have email and it matches → same author |
+| 4️⃣ | Full Name (given-names + family-names, or entity `name`) | If full names match → same author |
 
----
+## ✋ Manual Overrides: Skip / Unskip Contributors for Authorship
 
-### 🧩 Mapping Contributor Metadata to CFF Fields
+In some cases, the GitHub Action may detect a contributor identity that is incorrect, duplicated, or that the maintainers do not wish to include as an author in the `CITATION.cff` file.
 
-This table describes how contributor metadata from GitHub or commits is mapped to fields in the `CITATION.cff` file:
+To handle these cases, **maintainers can post PR comments with `skip-authorship` or `unskip-authorship` commands** to manually override contributor processing for that pull request.
 
-| Source                         | Metadata Field         | CFF Field              | Notes                                                                 |
-|-------------------------------|------------------------|------------------------|-----------------------------------------------------------------------|
-| GitHub user (individual)      | GitHub username profile URL       | `alias`                | Added as `alias` for traceability                                     |
-| GitHub user (individual)      | Profile name (e.g. "Jane Doe") | `given-names`, `family-names` | Split into first and last; if only one part, treated as `entity`     |
-| GitHub user (individual)      | Email (if public)      | `email`                | Optional; used if present                                             |
-| GitHub user (individual)      | ORCID in bio or matched | `orcid`                | Enriched via ORCID public API                                         |
-| GitHub user (organization)    | GitHub username profile URL       | `alias`                | Added as `alias`                                                      |
-| GitHub user (organization)    | Org display name       | `name`                 | Mapped to `entity` name                                               |
-| GitHub user (organization)    | Email (if public)      | `email`                | Optional                                                              |
-| Non-GitHub commit author      | Name (e.g. "Jane Doe") | `given-names`, `family-names` or `name` | If two parts → person; one part → `entity`                            |
-| Non-GitHub commit author      | Email                  | `email`                | Used for deduplication and enrichment                                 |
-| Non-GitHub commit author      | ORCID (matched)        | `orcid`                | If found and verified via ORCID API                                   |
+### Supported Commands
 
-> ✅ A contributor is classified as `type: person` only if both `given-names` and `family-names` are present. Otherwise, they are added as `type: entity`.
+You can skip or unskip contributors for authorship by writing a comment with one of these commands:
 
-> ❌ If a contributor has no name and no GitHub username, they are skipped and a warning is posted (including the commit SHA for traceability).
+| Command                              | Example |
+|--------------------------------------|---------|
+| `skip-authorship-by-github-username`      | `skip-authorship-by-github-username someuser` |
+| `unskip-authorship-by-github-username`    | `unskip-authorship-by-github-username someuser` |
+| `skip-authorship-by-email`                | `skip-authorship-by-email user@example.com` |
+| `unskip-authorship-by-email`              | `unskip-authorship-by-email user@example.com` |
+| `skip-authorship-by-name`                 | `skip-authorship-by-name John Doe` |
+| `unskip-authorship-by-name`               | `unskip-authorship-by-name John Doe` |
+| `skip-authorship-by-orcid`                | `skip-authorship-by-orcid https://orcid.org/0000-0000-0000-0000` |
+| `unskip-authorship-by-orcid`              | `unskip-authorship-by-orcid https://orcid.org/0000-0000-0000-0000` |
+
+
+### How manual overrides work
+
+- The Action scans **all PR comments**, ordered chronologically.
+- The most recent command for each contributor field wins.
+- If a contributor is currently skipped for authorship, the Action will:
+  - **Exclude them** from proposed CFF updates
+  - **Exclude them** from "missing author" checks
+  - **Exclude them** from duplicate checks
+- You can **change your mind** at any time by posting an `unskip-authorship` command.
+- Deleting a comment with a skip command works as if you never wrote that comment.
+- Deleting a comment with an unskip command works as if you never wrote that comment. 
+- You will need to manually restart the workflow or post another commit to the pull request for newly posted commands to take effect. Posting a pull request comment does not currently trigger the Github Action.
+- These commands only apply to new contributors on head branch (e.g., the forked branch you are trying to merge) of the pull request. They do not apply to old authors on the base branch (i.e. the branch into which the pull request merges).
+
+### Example of changing your mind with commands. 
+
+Here a contributor is skipped by email and then unskipped by email.
+
+```markdown
+skip-authorship-by-email user@example.com
+```
+
+```markdown
+unskip-authorship-by-email user@example.com
+```
+
+Note: You do not need to delete old comments — the Action will always apply the most recent command for each contributor field.
+
 
 ## 🛠 Developer Notes
 
@@ -226,3 +284,4 @@ Licensed under the [Apache 2.0 License](LICENSE).
 Druskat, S., Spaaks, J. H., Chue Hong, N., Haines, R., Baker, J., Bliven, S.,
 Willighagen, E., Pérez-Suárez, D., & Konovalov, A. (2021). Citation File Format
 (Version 1.2.0) [Computer software]. <https://doi.org/10.5281/zenodo.5171937>
+
