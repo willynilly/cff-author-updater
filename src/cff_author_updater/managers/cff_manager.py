@@ -24,7 +24,6 @@ from cff_author_updater.managers.contribution_manager import ContributionManager
 from cff_author_updater.managers.github_pull_request_manager import (
     GitHubPullRequestManager,
 )
-from cff_author_updater.managers.orcid_manager import OrcidManager
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +42,9 @@ class CffManager:
         self,
         cff_path: Path,
         github_pull_request_manager: GitHubPullRequestManager,
-        orcid_manager: OrcidManager,
     ):
         self.github_pull_request_manager = github_pull_request_manager
-        self.orcid_manager = orcid_manager
+        self.orcid_manager = github_pull_request_manager.orcid_manager
         self.cff_path = cff_path
 
     def _get_contribution_warning_postfix(
@@ -131,7 +129,7 @@ class CffManager:
         github_contributor: GitHubContributor,
         contribution_warning_postfix: str,
     ) -> CffAuthorContributor | None:
-        token = self.github_pull_request_manager.token
+        token = self.github_pull_request_manager.github_token
 
         contributor = github_contributor
         new_cff_author_data: dict = {}

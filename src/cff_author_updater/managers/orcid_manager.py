@@ -1,7 +1,9 @@
 import logging
 import re
+from typing import cast
 
 import requests
+from bs4 import BeautifulSoup, Tag
 
 logger = logging.getLogger(__name__)
 
@@ -9,13 +11,60 @@ logger = logging.getLogger(__name__)
 class OrcidManager:
 
     def __init__(self):
-        pass
+        self.user_agent = "cff-author-updater"
 
-    def extract_orcid(self, text: str):
+    @staticmethod
+    def extract_orcid(text: str, return_url: bool = True):
         if not text:
             return None
         match = re.search(r"https?://orcid\.org/(\d{4}-\d{4}-\d{4}-\d{4})", text)
-        return match.group(1) if match else None
+        if not match:
+            return None
+        orcid_id = match.group(1)
+        if return_url:
+            return f"https://orcid.org/{orcid_id}"
+        return orcid_id
+
+    def scrape_orcid_from_github_profile(self, github_username) -> str | None:
+        """Scrape linked ORCID badge from GitHub profile using BeautifulSoup."""
+        url = f"https://github.com/{github_username}"
+        headers = {
+            "User-Agent": self.user_agent
+        }
+
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            html = response.text
+
+            soup = BeautifulSoup(html, "html.parser")
+
+            # Step 1: Find the profile details section
+            details = cast(Tag | None, soup.find("ul", class_=re.compile(r"vcard-details")))
+
+            if details is None:
+                logger.info(f"No vcard-details section found for @{github_username}")
+                return None
+
+            # Step 2: Look for ORCID link in this section only
+            orcid_link = cast(Tag | None, details.find("a", href=re.compile(r"https://orcid\.org/\d{4}-\d{4}-\d{4}-\d{4}")))
+            
+            if orcid_link:
+                href_value = orcid_link.get("href")
+                if isinstance(href_value, str):
+                    linked_orcid = href_value
+                    logger.info(f"Linked ORCID badge for @{github_username}: {linked_orcid}")
+                    return linked_orcid
+                else:
+                    logger.warning(f"ORCID link href is not a string for @{github_username}: {href_value!r}")
+                    return None
+            else:
+                logger.info(f"No linked ORCID badge in vcard-details for @{github_username}")
+
+        except requests.RequestException as e:
+            logger.warning(f"Failed to fetch profile for @{github_username}: {e}")
+
+        return None
 
     def validate_orcid(self, orcid: str):
         if not orcid or not re.match(r"^\d{4}-\d{4}-\d{4}-\d{4}$", orcid):

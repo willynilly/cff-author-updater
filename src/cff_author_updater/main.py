@@ -12,7 +12,6 @@ from cff_author_updater.managers.contribution_manager import ContributionManager
 from cff_author_updater.managers.github_pull_request_manager import (
     GitHubPullRequestManager,
 )
-from cff_author_updater.managers.orcid_manager import OrcidManager
 
 # Set up logging
 setup_logging()
@@ -25,11 +24,9 @@ def main():
     if not cff_path or not cff_path.exists():
         raise Exception(f"Invalid CFF_PATH env variable: `{cff_path}` does not exist.")
 
-    orcid_manager: OrcidManager = OrcidManager()
     github_pull_request_manager: GitHubPullRequestManager = GitHubPullRequestManager()
     cff_manager: CffManager = CffManager(
         cff_path=cff_path,
-        orcid_manager=orcid_manager,
         github_pull_request_manager=github_pull_request_manager,
     )
 

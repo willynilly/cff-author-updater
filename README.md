@@ -54,7 +54,7 @@ jobs:
           cache: 'pip' # optional for cff-author-updater
 
       - name: Run cff-author-updater
-        uses: willynilly/cff-author-updater@v2.1.0
+        uses: willynilly/cff-author-updater@v2.2.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           base_branch: main
@@ -135,10 +135,10 @@ To use this action in your repository:
 - ✅ You must reference this action in your workflow as:
 
   ```yaml
-  uses: willynilly/cff-author-updater@v2.1.0
+  uses: willynilly/cff-author-updater@v2.2.0
   ```
 
-- ✅ For reproducibility, it is recommended to use version tags like `@v2.1.0`.
+- ✅ For reproducibility, it is recommended to use version tags like `@v2.2.0`.
 
 ---
 
