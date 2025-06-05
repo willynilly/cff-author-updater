@@ -128,24 +128,27 @@ class CffManager:
         github_contributor: GitHubContributor,
         contribution_warning_postfix: str,
     ) -> CffAuthorContributor | None:
+        contributor = github_contributor
+        github_username: str | None = contributor.github_username
+        github_user_profile_url: str | None = contributor.github_user_profile_url
+        is_valid_github_user: bool = contributor.is_valid_github_user
+        name: str | None = contributor.name
+        email: str | None = contributor.email
+        orcid: str | None = contributor.orcid
+        is_organization: bool = contributor.is_organization
 
         new_cff_author_data: dict = {}
 
         # skip the github contributor if it has an invalid github user name
-        if not github_contributor.is_valid_github_user:
+        if not is_valid_github_user:
             logger.warning(
-                f"Cannot create CFF author for @{github_contributor.github_username}: invalid GitHub username."
+                f"Cannot create CFF author for @{github_username}: invalid GitHub username."
             )
             return None
 
-        if github_contributor.email:
-            new_cff_author_data["email"] = github_contributor.email
-        
-        new_cff_author_data["alias"] = github_contributor.github_user_profile_url
+        full_name: str = name or github_username
 
-        full_name: str = github_contributor.name or github_contributor.github_username
-
-        if github_contributor.is_organization:
+        if is_organization:
             new_cff_author_data["name"] = full_name
         else:
             name_parts: list[str] = full_name.split(" ", 1)
@@ -156,10 +159,17 @@ class CffManager:
             else:
                 new_cff_author_data["name"] = full_name
                 logger.info(
-                    f"@{github_contributor.github_username}: Only one name part found, treated as entity for deduplication consistency.{contribution_warning_postfix}"
+                    f"@{github_username}: Only one name part found, treated as entity for deduplication consistency.{contribution_warning_postfix}"
                 )
-                return CffAuthorContributor(cff_author_data=new_cff_author_data)
 
+        new_cff_author_data["alias"] = github_user_profile_url
+
+        if email:
+            new_cff_author_data["email"] = email
+
+        if orcid:
+            new_cff_author_data["orcid"] = orcid
+        
         return CffAuthorContributor(cff_author_data=new_cff_author_data)
 
     def create_cff_author_contributor_from_git_commit_contributor(
@@ -177,17 +187,15 @@ class CffManager:
         if len(name_parts) > 1:
             new_cff_author_data["given-names"] = name_parts[0]
             new_cff_author_data["family-names"] = name_parts[1]
-            if email:
-                new_cff_author_data["email"] = email
-            if orcid:
-                new_cff_author_data["orcid"] = orcid
         else:
             new_cff_author_data["name"] = name
-            if email:
-                new_cff_author_data["email"] = email
             logger.info(
                 f"`{name}`: Only one name part found, treated as entity for deduplication consistency.{contribution_warning_postfix}"
             )
+        if email:
+            new_cff_author_data["email"] = email
+        if orcid:
+            new_cff_author_data["orcid"] = orcid
         return CffAuthorContributor(cff_author_data=new_cff_author_data)
 
     
