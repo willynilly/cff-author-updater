@@ -107,7 +107,7 @@ class GitHubContributor(Contributor):
                 f"@{self.github_username}: ORCID `{self.orcid}` is invalid or unreachable."
             )
         else:
-            logger.warning(f"@{self.github_username}: No ORCID found.")
+            logger.info(f"@{self.github_username}: No ORCID found.")
 
     def to_dict(self) -> dict:
         """

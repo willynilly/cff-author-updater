@@ -24,7 +24,7 @@ class GitCommitContributor(Contributor):
                     f"`{self.git_name}`: ORCID `{orcid}` is invalid or unreachable."
                 )
             else:
-                logger.warning(f"`{self.git_name}`: No ORCID found.")
+                logger.info(f"`{self.git_name}`: No ORCID found.")
 
     def to_dict(self) -> dict:
         """
