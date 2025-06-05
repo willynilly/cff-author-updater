@@ -3,7 +3,6 @@ import json
 import logging
 from pathlib import Path
 
-import requests
 import yaml
 
 from cff_author_updater.cff_author_review import CffAuthorReview
@@ -129,65 +128,37 @@ class CffManager:
         github_contributor: GitHubContributor,
         contribution_warning_postfix: str,
     ) -> CffAuthorContributor | None:
-        token = self.github_pull_request_manager.github_token
 
-        contributor = github_contributor
         new_cff_author_data: dict = {}
 
-        # Github user contributor
-        user_url: str = f"https://api.github.com/users/{contributor.github_username}"
-        resp: requests.Response = requests.get(
-            user_url, headers={"Authorization": f"token {token}"}
-        )
-
-        # skip the user if the user is not found
-        if resp.status_code != 200:
+        # skip the github contributor if it has an invalid github user name
+        if not github_contributor.is_valid_github_user:
             logger.warning(
-                f"@{contributor.github_username}: Unable to fetch user data from GitHub API. Status code: {resp.status_code}{contribution_warning_postfix}"
+                f"Cannot create CFF author for @{github_contributor.github_username}: invalid GitHub username."
             )
             return None
 
-        # determine the type of user
-        user = resp.json()
-        user_type = user.get("type")
-        user_profile_url: str = f"https://github.com/{contributor.github_username}"
+        if github_contributor.email:
+            new_cff_author_data["email"] = github_contributor.email
+        
+        new_cff_author_data["alias"] = github_contributor.github_user_profile_url
 
-        if user_type == "Organization":
-            new_cff_author_data["name"] = user.get("name") or contributor.github_username
-            new_cff_author_data["alias"] = user_profile_url
-            if user.get("email"):
-                new_cff_author_data["email"] = user["email"]
+        full_name: str = github_contributor.name or github_contributor.github_username
+
+        if github_contributor.is_organization:
+            new_cff_author_data["name"] = full_name
         else:
-            full_name: str = user.get("name") or contributor.github_username
             name_parts: list[str] = full_name.split(" ", 1)
 
             if len(name_parts) > 1:
                 new_cff_author_data["given-names"] = name_parts[0]
                 new_cff_author_data["family-names"] = name_parts[1]
-                new_cff_author_data["alias"] = user_profile_url
             else:
                 new_cff_author_data["name"] = full_name
-                new_cff_author_data["alias"] = user_profile_url
                 logger.info(
-                    f"@{contributor.github_username}: Only one name part found, treated as entity for deduplication consistency.{contribution_warning_postfix}"
+                    f"@{github_contributor.github_username}: Only one name part found, treated as entity for deduplication consistency.{contribution_warning_postfix}"
                 )
                 return CffAuthorContributor(cff_author_data=new_cff_author_data)
-
-            if user.get("email"):
-                new_cff_author_data["email"] = user["email"]
-            orcid = self.orcid_manager.extract_orcid(text=user.get("bio"))
-            if not orcid and full_name:
-                orcid = self.orcid_manager.search_orcid(
-                    full_name=full_name, email=user.get("email")
-                )
-            if orcid and self.orcid_manager.validate_orcid(orcid=orcid):
-                new_cff_author_data["orcid"] = f"https://orcid.org/{orcid}"
-            elif orcid:
-                logger.warning(
-                    f"@{contributor.github_username}: ORCID `{orcid}` is invalid or unreachable."
-                )
-            else:
-                logger.warning(f"@{contributor.github_username}: No ORCID found.")
 
         return CffAuthorContributor(cff_author_data=new_cff_author_data)
 
@@ -199,6 +170,7 @@ class CffManager:
         contributor = git_commit_contributor
         name = contributor.git_name
         email = contributor.git_email
+        orcid = contributor.orcid
         name_parts: list[str] = name.split(" ", 1)
         new_cff_author_data: dict = {}
 
@@ -207,15 +179,8 @@ class CffManager:
             new_cff_author_data["family-names"] = name_parts[1]
             if email:
                 new_cff_author_data["email"] = email
-            orcid = self.orcid_manager.search_orcid(name, email)
-            if orcid and self.orcid_manager.validate_orcid(orcid):
-                new_cff_author_data["orcid"] = f"https://orcid.org/{orcid}"
-            elif orcid:
-                logger.warning(
-                    f"`{name}`: ORCID `{orcid}` is invalid or unreachable."
-                )
-            else:
-                logger.warning(f"`{name}`: No ORCID found.")
+            if orcid:
+                new_cff_author_data["orcid"] = orcid
         else:
             new_cff_author_data["name"] = name
             if email:

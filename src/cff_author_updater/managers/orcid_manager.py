@@ -66,10 +66,17 @@ class OrcidManager:
 
         return None
 
-    def validate_orcid(self, orcid: str):
-        if not orcid or not re.match(r"^\d{4}-\d{4}-\d{4}-\d{4}$", orcid):
+    def validate_orcid(self, orcid: str, is_url: bool = True) -> bool:
+        if orcid is None or not isinstance(orcid, str):
             return False
-        url = f"https://pub.orcid.org/v3.0/{orcid}"
+        if not is_url:
+            # If it's not a URL, assume it's an ORCID ID
+            orcid_id = orcid
+        else:
+            orcid_id: str | None = self.extract_orcid(text=orcid, return_url=False)
+        if not orcid_id or not re.match(r"^\d{4}-\d{4}-\d{4}-\d{4}$", orcid_id):
+            return False
+        url = f"https://pub.orcid.org/v3.0/{orcid_id}"
         headers = {"Accept": "application/json"}
         try:
             resp = requests.get(url, headers=headers, timeout=5)
@@ -77,7 +84,7 @@ class OrcidManager:
         except Exception:
             return False
 
-    def search_orcid(self, full_name: str, email: str | None = None):
+    def search_orcid(self, full_name: str, email: str | None = None, return_url: bool = True) -> str | None:
         headers: dict = {"Accept": "application/vnd.orcid+json"}
         name_parts: list[str] = full_name.strip().split(" ", 1)
         given: str = name_parts[0] if len(name_parts) > 0 else ""
@@ -118,14 +125,17 @@ class OrcidManager:
                     + [n.strip().casefold() for n in other_names]
                     + [combined.casefold()]
                 )
+                orcid: str | None = orcid_id
+                if return_url:
+                    orcid = f"https://orcid.org/{orcid_id}"
                 if target in possibilities:
                     logger.info(
-                        f"`{full_name}` matched to ORCID `{orcid_id}` (record name: **{credit_name or combined}**)"
+                        f"`{full_name}` matched to ORCID `{orcid}` (record name: **{credit_name or combined}**)"
                     )
-                    return orcid_id
+                    return orcid
                 else:
                     logger.warning(
-                        f"`{full_name}`: ORCID `{orcid_id}` found but name mismatch"
+                        f"`{full_name}`: ORCID `{orcid}` found but name mismatch"
                     )
         except Exception as e:
             logger.warning(f"`{full_name}`: ORCID search failed: {e}")

@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -6,6 +7,8 @@ import requests
 import yaml
 
 from cff_author_updater.managers.orcid_manager import OrcidManager
+
+logger = logging.getLogger(__name__)
 
 
 class GitHubManager:
@@ -53,7 +56,7 @@ class GitHubManager:
 
         return cff_data.get("version", "")
     
-    def get_github_user_profile(self, github_username: str) -> dict:
+    def get_github_user_profile(self, github_username: str) -> dict | None:
         url = f"https://api.github.com/users/{github_username}"
         headers = {
             "Accept": "application/vnd.github.v3+json",
@@ -68,14 +71,18 @@ class GitHubManager:
             data = response.json()
 
             return {
+                "login": data.get("login", ""),
+                "name": data.get("name", ""),
                 "bio": data.get("bio", ""),
                 "blog": data.get("blog", ""),
                 "email": data.get("email", ""),
                 "type": data.get("type", "User"),
             }
 
-        except requests.RequestException as e:
-            raise RuntimeError(f"Failed to fetch GitHub user data for `{github_username}`: {e}")
+        except requests.RequestException:
+            msg = f"Invalid GitHub username: failed to find GitHub user profile for @{github_username}"
+            logger.error(msg)
+            return None
 
 
     def _load_github_event(self, event: dict):

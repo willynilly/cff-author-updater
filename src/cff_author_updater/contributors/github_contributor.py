@@ -1,3 +1,4 @@
+import logging
 import re
 
 from cff_author_updater.contributors.contributor import Contributor
@@ -24,6 +25,7 @@ def create_github_user_profile_url(github_username: str) -> str:
     """
     return "https://github.com/" + github_username
 
+logger = logging.getLogger(__name__)
 
 class GitHubContributor(Contributor):
 
@@ -34,48 +36,78 @@ class GitHubContributor(Contributor):
     ):
         super().__init__()
         
-        orcid_manager: OrcidManager = github_manager.orcid_manager
-
-        # Basic GitHub identity
         self.github_username: str = github_username.strip()
         self.github_user_profile_url: str = create_github_user_profile_url(self.github_username)
-
-        if not is_github_user_profile_url(self.github_user_profile_url):
-            raise ValueError(
-                f"Cannot create GitHubContributor: invalid GitHub username `{self.github_username}`."
-            )
-
         self.id: str = self.github_user_profile_url
+        self.name: str | None = None
+        self.bio: str | None = None
+        self.blog: str | None = None
+        self.email: str | None = None
+        self.is_organization: bool = False
+        self.orcid: str | None = None
+
+        if is_github_user_profile_url(self.github_user_profile_url):
+            self.is_valid_github_user = True
+        else:
+            logger.error(f"Cannot create GitHubContributor: invalid GitHub username `{self.github_username}`.")
+            self.is_valid_github_user = False
+            return
 
         # Fetch profile data via GitHubManager
-        user_profile_data: dict = github_manager.get_github_user_profile(self.github_username)
+        user_profile_data: dict | None = github_manager.get_github_user_profile(self.github_username)
+        if not user_profile_data:
+            self.is_valid_github_user = False
+        else:
+            # Store name, bio, blog, email
+            self.name = user_profile_data.get("name", "")
+            if self.name:
+                self.name = self.name.strip()
+            
+            self.bio = user_profile_data.get("bio", "")
+            if self.bio:
+                self.bio = self.bio.strip()
+        
+            self.blog = user_profile_data.get("blog", "")    
+            if self.blog:
+                self.blog = self.blog.strip()
 
-        # Store bio, blog, email
-        self.bio: str = user_profile_data.get("bio", "").strip()
-        self.blog: str = user_profile_data.get("blog", "").strip()
-        self.email: str = user_profile_data.get("email", "").strip()
+            self.email = user_profile_data.get("email", "")
+            if self.email:
+                self.email = self.email.strip()
 
-        # Store organization flag
-        self.is_organization: bool = user_profile_data.get("type", "User") == "Organization"
-
-        # Declare ORCID first
-        self.orcid: str | None = None
+            # Store organization flag
+            self.is_organization = user_profile_data.get("type", "User") == "Organization"
 
         # Assign ORCID in priority order:
         # 1. Badge from profile
-        linked_orcid = orcid_manager.scrape_orcid_from_github_profile(self.github_username)
+        orcid_manager: OrcidManager = github_manager.orcid_manager
+        linked_orcid: str | None = orcid_manager.scrape_orcid_from_github_profile(self.github_username)
         if linked_orcid:
             self.orcid = linked_orcid
-        else:
+        elif self.blog:
             # 2. Blog field
             blog_orcid = orcid_manager.extract_orcid(self.blog)
             if blog_orcid:
                 self.orcid = blog_orcid
-            else:
+            elif self.bio:
                 # 3. Bio field
                 bio_orcid = orcid_manager.extract_orcid(self.bio)
                 if bio_orcid:
                     self.orcid = bio_orcid
+                elif self.name:
+                    #4. Name field (require at least first and last name)
+                    name_parts: list[str] = self.name.split(" ", 1)
+                    if len(name_parts) > 1:
+                        if self.email:
+                            self.orcid = orcid_manager.search_orcid(
+                                full_name=self.name, email=self.email
+                            )
+        if self.orcid and not orcid_manager.validate_orcid(orcid=self.orcid):
+            logger.warning(
+                f"@{self.github_username}: ORCID `{self.orcid}` is invalid or unreachable."
+            )
+        else:
+            logger.warning(f"@{self.github_username}: No ORCID found.")
 
     def to_dict(self) -> dict:
         """
@@ -85,9 +117,11 @@ class GitHubContributor(Contributor):
             "github_username": self.github_username,
             "github_user_profile_url": self.github_user_profile_url,
             "id": self.id,
+            "name": self.name,
             "bio": self.bio,
             "blog": self.blog,
             "email": self.email,
             "orcid": self.orcid,
             "is_organization": self.is_organization,
+            "is_valid_github_user": self.is_valid_github_user,
         }

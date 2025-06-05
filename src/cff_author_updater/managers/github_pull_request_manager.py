@@ -376,7 +376,7 @@ class GitHubPullRequestManager(GitHubManager):
                     email = commit_author_data.get("email")
                     if name or email:
                         contributor = GitCommitContributor(
-                            git_name=name.strip(), git_email=email.strip()
+                            git_name=name.strip(), git_email=email.strip(), orcid_manager=self.orcid_manager
                         )
                         contribution = GitHubPullRequestCommitContribution(
                             sha=sha, created_at=commit_date
@@ -390,7 +390,7 @@ class GitHubPullRequestManager(GitHubManager):
                         name, email = match.groups()
                         if name not in bot_blacklist:
                             contributor = GitCommitContributor(
-                                git_name=name.strip(), git_email=email.strip()
+                                git_name=name.strip(), git_email=email.strip(), orcid_manager=self.orcid_manager
                             )
                             contribution = GitHubPullRequestCommitContribution(
                                 sha=sha, created_at=commit_date
