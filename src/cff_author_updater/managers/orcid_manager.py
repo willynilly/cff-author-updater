@@ -59,10 +59,10 @@ class OrcidManager:
                     logger.warning(f"ORCID link href is not a string for @{github_username}: {href_value!r}")
                     return None
             else:
-                logger.info(f"No linked ORCID badge in vcard-details for @{github_username}")
+                logger.info(f"No linked ORCID badge on GitHub profile page for @{github_username}")
 
         except requests.RequestException as e:
-            logger.warning(f"Failed to fetch profile for @{github_username}: {e}")
+            logger.warning(f"Failed to fetch GitHub profile for @{github_username}: {e}")
 
         return None
 
