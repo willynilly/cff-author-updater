@@ -54,9 +54,9 @@ class CffAuthorReview:
         original_cff = self.cff_file.original_cff
 
         log_collector = get_log_collector()
-        error_logs = log_collector.get_error_logs()
-        warning_logs = log_collector.get_warning_logs()
-        info_logs = log_collector.get_info_logs()
+        error_logs = log_collector.get_error_logs(is_unique=True)
+        warning_logs = log_collector.get_warning_logs(is_unique=True)
+        info_logs = log_collector.get_info_logs(is_unique=True)
 
         marker: str = "<!-- cff-author-updater-pr-comment -->"
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")

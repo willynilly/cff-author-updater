@@ -1,5 +1,6 @@
 import logging
 import re
+from functools import lru_cache
 from typing import cast
 
 import requests
@@ -25,7 +26,8 @@ class OrcidManager:
             return f"https://orcid.org/{orcid_id}"
         return orcid_id
 
-    def scrape_orcid_from_github_profile(self, github_username) -> str | None:
+    @lru_cache(maxsize=None, typed=True)
+    def scrape_orcid_from_github_profile(self, github_username: str, is_url: bool=True) -> str | None:
         """Scrape linked ORCID badge from GitHub profile using BeautifulSoup."""
         url = f"https://github.com/{github_username}"
         headers = {
@@ -54,10 +56,12 @@ class OrcidManager:
                 if isinstance(href_value, str):
                     linked_orcid = href_value
                     logger.info(f"Linked ORCID badge for @{github_username}: {linked_orcid}")
-                    return linked_orcid
+                    if is_url:
+                        return linked_orcid
+                    else:
+                        return self.extract_orcid(text=linked_orcid, return_url=False)
                 else:
                     logger.warning(f"ORCID link href is not a string for @{github_username}: {href_value!r}")
-                    return None
             else:
                 logger.info(f"No linked ORCID badge on GitHub profile page for @{github_username}")
 
@@ -66,6 +70,7 @@ class OrcidManager:
 
         return None
 
+    @lru_cache(maxsize=None, typed=True)
     def validate_orcid(self, orcid: str, is_url: bool = True) -> bool:
         if orcid is None or not isinstance(orcid, str):
             return False
@@ -83,7 +88,8 @@ class OrcidManager:
             return resp.status_code == 200
         except Exception:
             return False
-
+    
+    @lru_cache(maxsize=None, typed=True)
     def search_orcid(self, full_name: str, email: str | None = None, return_url: bool = True) -> str | None:
         headers: dict = {"Accept": "application/vnd.orcid+json"}
         name_parts: list[str] = full_name.strip().split(" ", 1)
@@ -140,3 +146,8 @@ class OrcidManager:
         except Exception as e:
             logger.warning(f"`{full_name}`: ORCID search failed: {e}")
         return None
+    
+    def clear_cache(self):
+        self.search_orcid.cache_clear()
+        self.scrape_orcid_from_github_profile.cache_clear()
+        self.validate_orcid.cache_clear()

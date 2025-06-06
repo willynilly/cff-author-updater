@@ -396,9 +396,9 @@ class CffManager:
                 cffconvert_validation_errors += e.cffconvert_validation_errors
 
         log_collector = get_log_collector()
-        error_logs = log_collector.get_error_logs()
-        warning_logs = log_collector.get_warning_logs()
-        info_logs = log_collector.get_info_logs()
+        error_logs = log_collector.get_error_logs(is_unique=True)
+        warning_logs = log_collector.get_warning_logs(is_unique=True)
+        info_logs = log_collector.get_info_logs(is_unique=True)
 
         with open(output_file, "a") as f:
             f.write(
