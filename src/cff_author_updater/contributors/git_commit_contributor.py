@@ -18,7 +18,10 @@ class GitCommitContributor(Contributor):
         if self.git_email:
             # do not include the git name in the id when searching for the ORCID. Only search by email since they may have another name.
             orcids: list[str] = orcid_manager.search_orcid(name=None, email=self.git_email, return_url=True)
-            if orcids and orcid_manager.validate_orcid(orcids[0], is_url=True):
+            
+            if not orcids:
+                logger.info(f"`{self.git_email}`: No ORCID found.")
+            elif orcid_manager.validate_orcid(orcids[0], is_url=True):
                 self.orcid = orcids[0]
                 orcid_names, credit_name, combined_credit_name, other_names = orcid_manager.get_names_from_orcid(orcid=self.orcid)
                 if orcid_names:
@@ -32,15 +35,12 @@ class GitCommitContributor(Contributor):
                                 f"`{self.git_email}`: ORCID name `{self.orcid_name}` does not match git name `{self.git_name}` Using git name."
                             )
                     else:
-                        self.git_name = orcid_name
-                        logger.info(f"`{self.git_email}`: Added name `{self.git_name}` from ORCID `{self.orcid}`.")    
+                        logger.info(f"`{self.git_email}`: Added name `{self.orcid_name}` from ORCID `{self.orcid}`.")    
                     
-            elif orcids:
+            else:
                 logger.warning(
                     f"`{self.git_name}`: ORCID `{orcids[0]}` is invalid or unreachable."
                 )
-            else:
-                logger.info(f"`{self.git_email}`: No ORCID found.")
 
     def to_dict(self) -> dict:
         """
