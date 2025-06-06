@@ -128,6 +128,9 @@ The `missing_author_invalidates_pr` and `duplicate_author_invalidates_pr` flags 
 | `error_log`   | Log that contains errors about the CFF author update process.             |
 | `warning_log` | Log that contains warnings about the CFF author update process.             |
 | `info_log`    | Log that contains general information about the CFF author update process.                     |
+| `debug_log`    | Log that contains debug information about the CFF author update process.                     |
+
+**Note:** The `debug_log` is empty unless the GitHub environmental variable `ACTIONS_STEP_DEBUG` has been set to `true`. This occurs automatically, when you enable debugging from the GitHub website.  
 
 ---
 

@@ -321,11 +321,11 @@ class CffManager:
 
         contributors: set[Contributor] = set(contribution_manager.contributors)
 
-        print('debug: before contributors', [c.to_dict() for c in contributors])
+        logger.debug(f'before contributors {[c.to_dict() for c in contributors]}')
 
         for contributor in contributors:
 
-            print('debug: contributor', contributor.to_dict(), contributor.__class__.__name__)
+            logger.debug(f'contributor {contributor.to_dict()} {contributor.__class__.__name__}')
 
 
             if self.github_pull_request_manager.should_skip_contributor(contributor, skip_commands):
@@ -366,11 +366,11 @@ class CffManager:
                 raise Exception("Invalid contributor class.")
 
             if new_cff_author is None:
-                print('debug: new_cff_author is None, skipping contributor')
+                logger.debug('new_cff_author is None, skipping contributor')
                 continue
             else:
 
-                print('debug: new_cff_author', new_cff_author.to_dict(), new_cff_author.__class__.__name__)
+                logger.debug(f'new_cff_author {new_cff_author.to_dict(), new_cff_author.__class__.__name__}')
 
                 # this checks the contributor for skipping after it has been enriched with orcid information 
                 if self.github_pull_request_manager.should_skip_contributor(contributor=new_cff_author, skip_commands=skip_commands):
@@ -412,9 +412,9 @@ class CffManager:
 
         self._add_additional_logs(contribution_manager=contribution_manager, missing_authors=missing_authors, duplicate_authors=duplicate_authors, cffconvert_validation_errors=cffconvert_validation_errors)
 
-        print('debug: after contributors', [c.to_dict() for c in contributors])
-        print('debug: already_in_cff_contributors', [c.to_dict() for c in already_in_cff_contributors])
-        print('debug: missing_authors', [c.to_dict() for c in missing_authors])
+        logger.debug(f'after contributors {[c.to_dict() for c in contributors]}')
+        logger.debug(f'already_in_cff_contributors {[c.to_dict() for c in already_in_cff_contributors]}')
+        logger.debug(f'missing_authors {[c.to_dict() for c in missing_authors]}')
 
         if Flags.has("post_pr_comment") and pr_number:
             
@@ -439,9 +439,16 @@ class CffManager:
         
         # collect and output final logs
         log_collector = get_log_collector()
-        error_logs = log_collector.get_error_logs(is_unique=True)
-        warning_logs = log_collector.get_warning_logs(is_unique=True)
-        info_logs = log_collector.get_info_logs(is_unique=True)
+        error_logs = log_collector.get_error_logs(is_unique=False)
+        warning_logs = log_collector.get_warning_logs(is_unique=False)
+        info_logs = log_collector.get_info_logs(is_unique=False)
+
+        # Determine the log level and collect debug logs if applicable
+        log_level = logging.getLevelName(logger.getEffectiveLevel())
+        if log_level == 'DEBUG':
+            debug_logs = log_collector.get_debug_logs(is_unique=False)
+        else:
+            debug_logs = []
 
         with open(output_file, "a") as f:
             f.write(
@@ -478,6 +485,8 @@ class CffManager:
                 f.write("warning_log<<EOF\n" + "\n".join(warning_logs) + "\nEOF\n")
             if info_logs:
                 f.write("info_log<<EOF\n" + "\n".join(info_logs) + "\nEOF\n")
+            if debug_logs:
+                f.write("debug_log<<EOF\n" + "\n".join(debug_logs) + "\nEOF\n")
 
 
         return missing_authors, duplicate_authors, cffconvert_validation_errors

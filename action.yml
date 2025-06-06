@@ -106,6 +106,8 @@ outputs:
     description: Log that contains warnings about the CFF author update process.
   info_log:
     description: Log that contains general information about the CFF author update process.
+  debug_log:
+    description: Log that contains debug information about the CFF author update process.
 
 runs:
   using: "composite"
