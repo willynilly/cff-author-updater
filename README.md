@@ -164,7 +164,7 @@ When a contributor is associated with a GitHub account:
   - Mapped to CFF `entity`
   - Fields used: `name`, `alias`, `email` (if provided by GitHub)
 
-> ORCID enrichment is only applied to individuals (`type: person`). The Github user profile URL is used for the `alias`
+> ORCID enrichment is only applied to individuals (`type: person`). The GitHub user profile URL is used for the `alias`
 
 ---
 
@@ -258,7 +258,7 @@ You can skip or unskip contributors for authorship by writing a comment with one
 - You can **change your mind** at any time by posting an `unskip-authorship` command.
 - Deleting a comment with a skip command works as if you never wrote that comment.
 - Deleting a comment with an unskip command works as if you never wrote that comment. 
-- You will need to manually restart the workflow or post another commit to the pull request for newly posted commands to take effect. Posting a pull request comment does not currently trigger the Github Action.
+- You will need to manually restart the workflow or post another commit to the pull request for newly posted commands to take effect. Posting a pull request comment does not currently trigger the GitHub Action.
 - These commands only apply to new contributors on head branch (e.g., the forked branch you are trying to merge) of the pull request. They do not apply to old authors on the base branch (i.e. the branch into which the pull request merges).
 
 ### Example of changing your mind with commands. 

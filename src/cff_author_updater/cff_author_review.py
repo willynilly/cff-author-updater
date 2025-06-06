@@ -160,8 +160,8 @@ class CffAuthorReview:
 """
             body += (
                 f"***Important: This recommended `{cff_path}` file has not been changed yet on this pull request. "
-                f"It can be manually copied and committed to the repository. For Github users to be recognized, "
-                f"you must use their Github user profile URL as their `alias` in the {cff_path} file."
+                f"It can be manually copied and committed to the repository. For GitHub users to be recognized, "
+                f"you must use their GitHub user profile URL as their `alias` in the {cff_path} file."
             )
             if self.missing_author_invalidates_pr:
                 body += f" If the `{cff_path}` file is missing any new author, the pull request will remain invalid."
