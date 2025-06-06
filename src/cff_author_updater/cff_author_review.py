@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from datetime import datetime, timezone
@@ -17,6 +18,8 @@ from cff_author_updater.managers.github_pull_request_manager import (
     GitHubPullRequestManager,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class CffAuthorReview:
 
@@ -29,6 +32,7 @@ class CffAuthorReview:
         missing_author_invalidates_pr: bool,
         duplicate_authors: set,
         duplicate_author_invalidates_pr: bool,
+        cffconvert_validation_errors: list[str]
     ):
         self.cff_file = cff_file
         self.github_pull_request_manager = github_pull_request_manager
@@ -41,6 +45,7 @@ class CffAuthorReview:
         self.missing_author_invalidates_pr = missing_author_invalidates_pr
         self.duplicate_authors = duplicate_authors
         self.duplicate_author_invalidates_pr = duplicate_author_invalidates_pr
+        self.cffconvert_validation_errors = cffconvert_validation_errors
 
     def _split_pascal_case(self, text: str) -> str:
         """
