@@ -174,6 +174,8 @@ class OrcidManager:
             if not orcid_id:
                 logger.warning(f"Invalid ORCID URL provided: {orcid}")
                 return [], '', '', []
+        else:
+            orcid_id = orcid
         headers: dict = {"Accept": "application/vnd.orcid+json"}
         url = f"https://pub.orcid.org/v3.0/{orcid_id}/personal-details"
         try:
@@ -187,18 +189,22 @@ class OrcidManager:
             given_name: str = (main_name.get("given-names", {}) or {}).get("value", "").strip()
             family_name: str = (main_name.get("family-name", {}) or {}).get("value", "").strip()
             
-            if credit_name:
+            if credit_name and credit_name not in names:
                 names.append(credit_name)
 
             if given_name and family_name:
                 combined_credit_name: str = f"{given_name} {family_name}".strip()
-                names.append(combined_credit_name)
+                if combined_credit_name and combined_credit_name not in names:
+                    names.append(combined_credit_name)
 
             other_names: list[str] = []
             for other in (details.get("other-names", {}) or {}).get("other-name", []):
                 other_name = other.get("content", "").strip()
-                other_names.append(other_name)
-                names.append(other_name)
+                if other_name:
+                    if other_name not in other_names:
+                        other_names.append(other_name)
+                    if other_name not in names:
+                        names.append(other_name)
 
             return names, credit_name, combined_credit_name, other_names
         except Exception:
