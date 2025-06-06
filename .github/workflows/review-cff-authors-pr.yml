@@ -35,6 +35,9 @@ jobs:
           head_branch: ${{ github.head_ref }}
           cff_path: CITATION.cff
           post_pr_comment: true
+          show_error_messages_in_pr_comment: true
+          show_warning_messages_in_pr_comment: true
+          show_info_messages_in_pr_comment: true
           authorship_for_pr_commits: true
           authorship_for_pr_reviews: true
           authorship_for_pr_issues: true

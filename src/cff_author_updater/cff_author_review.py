@@ -10,6 +10,7 @@ from cff_author_updater.contributions.github_pull_request_commit_contribution im
 )
 from cff_author_updater.contributors.git_commit_contributor import GitCommitContributor
 from cff_author_updater.contributors.github_contributor import GitHubContributor
+from cff_author_updater.flags import Flags
 from cff_author_updater.logging_config import get_log_collector
 from cff_author_updater.managers.contribution_manager import ContributionManager
 from cff_author_updater.managers.github_pull_request_manager import (
@@ -176,16 +177,23 @@ class CffAuthorReview:
 """
 
         if error_logs:
-            body += "\n\n**🚨 Errors:**\n" + "\n".join(["- " + e for e in error_logs])
+            if Flags.has("show_error_messages_in_pr_comment"):
+                body += "\n\n**🚨 Errors:**\n" + "\n".join(["- " + e for e in error_logs])
+            else:
+                body += "\n\n**🚨 Errors:**\n" + "The pull request has errors. Please check the logs for details."
 
         if warning_logs:
-            body += "\n\n**⚠️ Warnings:**\n" + "\n".join(
-                ["- " + w for w in warning_logs]
-            )
+            if Flags.has("show_warning_messages_in_pr_comment"):
+                body += "\n\n**⚠️ Warnings:**\n" + "\n".join(["- " + w for w in warning_logs])
+            else:
+                body += "\n\n**⚠️ Warnings:**\n" + "The pull request has warnings. Please check the logs for details."
 
         if info_logs:
-            body += "\n\n**ℹ️ Info:**\n" + "\n".join(["- " + i for i in info_logs])
-
+            if Flags.has("show_info_messages_in_pr_comment"):
+                body += "\n\n**ℹ️ Info:**\n" + "\n".join(["- " + i for i in info_logs])
+            else:
+                body += "\n\n**ℹ️ Info:**\n" + "The pull request has info messages. Please check the logs for details."
+            
         body += f"""
 
 _Last updated: {timestamp} UTC · Commit [`{commit_sha_short}`]({commit_url})_

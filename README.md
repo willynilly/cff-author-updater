@@ -61,6 +61,9 @@ jobs:
           head_branch: ${{ github.head_ref }}
           cff_path: CITATION.cff
           post_pr_comment: true
+          show_error_messages_in_pr_comment: true
+          show_warning_messages_in_pr_comment: true
+          show_info_messages_in_pr_comment: true
           authorship_for_pr_commits: true
           authorship_for_pr_reviews: true
           authorship_for_pr_issues: true
@@ -84,6 +87,9 @@ jobs:
 | `head_branch`                 | Source branch of the PR                                          | ✅ Yes   | —                      |
 | `cff_path`                    | Path to your `CITATION.cff` file                                 | ❌ No    | `CITATION.cff`         |
 | `post_pr_comment`                | Whether to comment the updated CFF file on the PR                | ❌ No    | `true`                 |                 |
+| `show_error_messages_in_pr_comment`                | Whether to show error messages in PR comment                | ❌ No    | `true`                 |                 |
+| `show_warning_messages_in_pr_comment`                | Whether to show warning messages in PR comment                | ❌ No    | `true`                 |                 |
+| `show_info_messages_in_pr_comment`                | Whether to show info messages in PR comment                | ❌ No    | `true`                 |                 |
 | `authorship_for_pr_commits`  | Include commit authors and co-authors as authors                     | ❌ No    | `true`                 |
 | `authorship_for_pr_reviews`  | Include users who reviewed the PR as authors                                   | ❌ No    | `true`                 |
 | `authorship_for_pr_issues`   | Include authors of issues linked to the PR as authors                           | ❌ No    | `true`                 |
