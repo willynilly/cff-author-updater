@@ -56,7 +56,7 @@ class OrcidManager:
 
 
     @lru_cache(maxsize=None, typed=True)
-    def scrape_orcid_from_github_profile(self, github_username: str, is_url: bool=True) -> str | None:
+    def scrape_orcid_from_github_profile(self, github_username: str) -> str | None:
         """Scrape linked ORCID badge from GitHub profile using BeautifulSoup."""
         url = f"https://github.com/{github_username}"
         headers = {
@@ -88,10 +88,7 @@ class OrcidManager:
                 if isinstance(href_value, str):
                     linked_orcid = href_value
                     logger.info(f"Linked ORCID badge for @{github_username}: {linked_orcid}")
-                    if is_url:
-                        return linked_orcid
-                    else:
-                        return self.extract_orcid(text=linked_orcid, find_url=True, return_url=False)
+                    return linked_orcid
                 else:
                     logger.warning(f"ORCID link href is not a string for @{github_username}: {href_value!r}")
             else:

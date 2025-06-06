@@ -83,30 +83,37 @@ class GitHubContributor(Contributor):
             self.github_is_organization = user_profile_data.get("type", "User") == "Organization"
 
         # Assign ORCID in priority order:
-        # 1. Badge from profile
         orcid_manager: OrcidManager = github_manager.orcid_manager
-        linked_orcid: str | None = orcid_manager.scrape_orcid_from_github_profile(self.github_username)
-        if linked_orcid:
-            self.orcid = linked_orcid
-        elif self.github_blog:
+
+        if not self.orcid and self.github_username:
+            # 1. Badge from profile
+            linked_orcid: str | None = orcid_manager.scrape_orcid_from_github_profile(github_username=self.github_username)
+            logger.debug(f"{linked_orcid}")
+            if linked_orcid:
+                self.orcid = linked_orcid
+
+        if not self.orcid and self.github_blog:
             # 2. Blog field
             blog_orcid = orcid_manager.extract_orcid(self.github_blog, find_url=True, return_url=True)
             if blog_orcid:
                 self.orcid = blog_orcid
-            elif self.github_bio:
-                # 3. Bio field
-                bio_orcid = orcid_manager.extract_orcid(self.github_bio, find_url=True, return_url=True)
-                if bio_orcid:
-                    self.orcid = bio_orcid
-                elif self.github_email:
-                    #4. Search Orcid by Email
-                    # do not include the git name in the id when searching for the ORCID. Only search by email since they may have another name.
-                    orcids: list[str] = orcid_manager.search_orcid(
-                        name=None, email=self.github_email, return_url=True
-                    )
-                    if orcids:
-                        self.orcid = orcids[0]
-            
+        
+        if not self.orcid and self.github_bio:
+            # 3. Bio field
+            bio_orcid = orcid_manager.extract_orcid(self.github_bio, find_url=True, return_url=True)
+            if bio_orcid:
+                self.orcid = bio_orcid
+                
+        if not self.orcid and self.github_email:
+            #4. Search Orcid by Email
+            # do not include the git name in the id when searching for the ORCID. Only search by email since they may have another name.
+            orcids: list[str] = orcid_manager.search_orcid(
+                name=None, email=self.github_email, return_url=True
+            )
+            if orcids:
+                self.orcid = orcids[0]
+        
+        logger.debug(f"self.orcid: {self.orcid}")
         if not self.orcid:
             logger.info(f"@{self.github_username}: No ORCID found.")
         elif not orcid_manager.validate_orcid(orcid=self.orcid):
