@@ -54,13 +54,16 @@ jobs:
           cache: 'pip' # optional for cff-author-updater
 
       - name: Run cff-author-updater
-        uses: willynilly/cff-author-updater@v2.1.0
+        uses: willynilly/cff-author-updater@v2.2.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           base_branch: main
           head_branch: ${{ github.head_ref }}
           cff_path: CITATION.cff
           post_pr_comment: true
+          show_error_messages_in_pr_comment: true
+          show_warning_messages_in_pr_comment: true
+          show_info_messages_in_pr_comment: true
           authorship_for_pr_commits: true
           authorship_for_pr_reviews: true
           authorship_for_pr_issues: true
@@ -84,6 +87,9 @@ jobs:
 | `head_branch`                 | Source branch of the PR                                          | ✅ Yes   | —                      |
 | `cff_path`                    | Path to your `CITATION.cff` file                                 | ❌ No    | `CITATION.cff`         |
 | `post_pr_comment`                | Whether to comment the updated CFF file on the PR                | ❌ No    | `true`                 |                 |
+| `show_error_messages_in_pr_comment`                | Whether to show error messages in PR comment                | ❌ No    | `true`                 |                 |
+| `show_warning_messages_in_pr_comment`                | Whether to show warning messages in PR comment                | ❌ No    | `true`                 |                 |
+| `show_info_messages_in_pr_comment`                | Whether to show info messages in PR comment                | ❌ No    | `true`                 |                 |
 | `authorship_for_pr_commits`  | Include commit authors and co-authors as authors                     | ❌ No    | `true`                 |
 | `authorship_for_pr_reviews`  | Include users who reviewed the PR as authors                                   | ❌ No    | `true`                 |
 | `authorship_for_pr_issues`   | Include authors of issues linked to the PR as authors                           | ❌ No    | `true`                 |
@@ -122,6 +128,9 @@ The `missing_author_invalidates_pr` and `duplicate_author_invalidates_pr` flags 
 | `error_log`   | Log that contains errors about the CFF author update process.             |
 | `warning_log` | Log that contains warnings about the CFF author update process.             |
 | `info_log`    | Log that contains general information about the CFF author update process.                     |
+| `debug_log`    | Log that contains debug information about the CFF author update process.                     |
+
+**Note:** The `debug_log` is empty unless the GitHub environmental variable `ACTIONS_STEP_DEBUG` has been set to `true`. This occurs automatically, when you enable debugging from the GitHub website.  
 
 ---
 
@@ -135,10 +144,10 @@ To use this action in your repository:
 - ✅ You must reference this action in your workflow as:
 
   ```yaml
-  uses: willynilly/cff-author-updater@v2.1.0
+  uses: willynilly/cff-author-updater@v2.2.0
   ```
 
-- ✅ For reproducibility, it is recommended to use version tags like `@v2.1.0`.
+- ✅ For reproducibility, it is recommended to use version tags like `@v2.2.0`.
 
 ---
 
@@ -158,7 +167,7 @@ When a contributor is associated with a GitHub account:
   - Mapped to CFF `entity`
   - Fields used: `name`, `alias`, `email` (if provided by GitHub)
 
-> ORCID enrichment is only applied to individuals (`type: person`). The Github user profile URL is used for the `alias`
+> ORCID enrichment is only applied to individuals (`type: person`). The GitHub user profile URL is used for the `alias`
 
 ---
 
@@ -252,7 +261,7 @@ You can skip or unskip contributors for authorship by writing a comment with one
 - You can **change your mind** at any time by posting an `unskip-authorship` command.
 - Deleting a comment with a skip command works as if you never wrote that comment.
 - Deleting a comment with an unskip command works as if you never wrote that comment. 
-- You will need to manually restart the workflow or post another commit to the pull request for newly posted commands to take effect. Posting a pull request comment does not currently trigger the Github Action.
+- You will need to manually restart the workflow or post another commit to the pull request for newly posted commands to take effect. Posting a pull request comment does not currently trigger the GitHub Action.
 - These commands only apply to new contributors on head branch (e.g., the forked branch you are trying to merge) of the pull request. They do not apply to old authors on the base branch (i.e. the branch into which the pull request merges).
 
 ### Example of changing your mind with commands. 

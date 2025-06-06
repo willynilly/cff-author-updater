@@ -26,6 +26,12 @@ class Flags:
         == "true",
         "post_pr_comment": os.environ.get("POST_PR_COMMENT", "true").casefold()
         == "true",
+        "show_error_messages_in_pr_comment": os.environ.get("SHOW_ERROR_MESSAGES_IN_PR_COMMENT", "true").casefold()
+        == "true",
+        "show_warning_messages_in_pr_comment": os.environ.get("SHOW_WARNING_MESSAGES_IN_PR_COMMENT", "true").casefold()
+        == "true",
+        "show_info_messages_in_pr_comment": os.environ.get("SHOW_INFO_MESSAGES_IN_PR_COMMENT", "true").casefold()
+        == "true",
         "missing_author_invalidates_pr": os.environ.get(
             "MISSING_AUTHOR_INVALIDATES_PR", "true"
         ).casefold()

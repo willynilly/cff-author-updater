@@ -1,7 +1,10 @@
 import logging
 import re
+from functools import lru_cache
+from typing import cast
 
 import requests
+from bs4 import BeautifulSoup, Tag
 
 logger = logging.getLogger(__name__)
 
@@ -9,26 +12,85 @@ logger = logging.getLogger(__name__)
 class OrcidManager:
 
     def __init__(self):
-        pass
+        self.user_agent = "cff-author-updater"
 
-    def extract_orcid(self, text: str):
+    @staticmethod
+    def extract_orcid(text: str, return_url: bool = True):
         if not text:
             return None
         match = re.search(r"https?://orcid\.org/(\d{4}-\d{4}-\d{4}-\d{4})", text)
-        return match.group(1) if match else None
+        if not match:
+            return None
+        orcid_id = match.group(1)
+        if return_url:
+            return f"https://orcid.org/{orcid_id}"
+        return orcid_id
 
-    def validate_orcid(self, orcid: str):
-        if not orcid or not re.match(r"^\d{4}-\d{4}-\d{4}-\d{4}$", orcid):
+    @lru_cache(maxsize=None, typed=True)
+    def scrape_orcid_from_github_profile(self, github_username: str, is_url: bool=True) -> str | None:
+        """Scrape linked ORCID badge from GitHub profile using BeautifulSoup."""
+        url = f"https://github.com/{github_username}"
+        headers = {
+            "User-Agent": self.user_agent
+        }
+
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            html = response.text
+
+            soup = BeautifulSoup(html, "html.parser")
+
+            # Step 1: Find the profile details section
+            details = cast(Tag | None, soup.find("ul", class_=re.compile(r"vcard-details")))
+
+            if details is None:
+                logger.info(f"No vcard-details section found for @{github_username}")
+                return None
+
+            # Step 2: Look for ORCID link in this section only
+            orcid_link = cast(Tag | None, details.find("a", href=re.compile(r"https://orcid\.org/\d{4}-\d{4}-\d{4}-\d{4}")))
+            
+            if orcid_link:
+                href_value = orcid_link.get("href")
+                if isinstance(href_value, str):
+                    linked_orcid = href_value
+                    logger.info(f"Linked ORCID badge for @{github_username}: {linked_orcid}")
+                    if is_url:
+                        return linked_orcid
+                    else:
+                        return self.extract_orcid(text=linked_orcid, return_url=False)
+                else:
+                    logger.warning(f"ORCID link href is not a string for @{github_username}: {href_value!r}")
+            else:
+                logger.info(f"No linked ORCID badge on GitHub profile page for @{github_username}")
+
+        except requests.RequestException as e:
+            logger.warning(f"Failed to fetch GitHub profile for @{github_username}: {e}")
+
+        return None
+
+    @lru_cache(maxsize=None, typed=True)
+    def validate_orcid(self, orcid: str, is_url: bool = True) -> bool:
+        if orcid is None or not isinstance(orcid, str):
             return False
-        url = f"https://pub.orcid.org/v3.0/{orcid}"
+        if not is_url:
+            # If it's not a URL, assume it's an ORCID ID
+            orcid_id = orcid
+        else:
+            orcid_id: str | None = self.extract_orcid(text=orcid, return_url=False)
+        if not orcid_id or not re.match(r"^\d{4}-\d{4}-\d{4}-\d{4}$", orcid_id):
+            return False
+        url = f"https://pub.orcid.org/v3.0/{orcid_id}"
         headers = {"Accept": "application/json"}
         try:
             resp = requests.get(url, headers=headers, timeout=5)
             return resp.status_code == 200
         except Exception:
             return False
-
-    def search_orcid(self, full_name: str, email: str | None = None):
+    
+    @lru_cache(maxsize=None, typed=True)
+    def search_orcid(self, full_name: str, email: str | None = None, return_url: bool = True) -> str | None:
         headers: dict = {"Accept": "application/vnd.orcid+json"}
         name_parts: list[str] = full_name.strip().split(" ", 1)
         given: str = name_parts[0] if len(name_parts) > 0 else ""
@@ -69,15 +131,23 @@ class OrcidManager:
                     + [n.strip().casefold() for n in other_names]
                     + [combined.casefold()]
                 )
+                orcid: str | None = orcid_id
+                if return_url:
+                    orcid = f"https://orcid.org/{orcid_id}"
                 if target in possibilities:
                     logger.info(
-                        f"`{full_name}` matched to ORCID `{orcid_id}` (record name: **{credit_name or combined}**)"
+                        f"`{full_name}` matched to ORCID `{orcid}` (record name: **{credit_name or combined}**)"
                     )
-                    return orcid_id
+                    return orcid
                 else:
                     logger.warning(
-                        f"`{full_name}`: ORCID `{orcid_id}` found but name mismatch"
+                        f"`{full_name}`: ORCID `{orcid}` found but name mismatch"
                     )
         except Exception as e:
             logger.warning(f"`{full_name}`: ORCID search failed: {e}")
         return None
+    
+    def clear_cache(self):
+        self.search_orcid.cache_clear()
+        self.scrape_orcid_from_github_profile.cache_clear()
+        self.validate_orcid.cache_clear()

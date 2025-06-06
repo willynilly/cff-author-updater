@@ -78,7 +78,7 @@ class GitHubPullRequestManager(GitHubManager):
         # PR Reviews
         if Flags.has("authorship_for_pr_reviews"):
 
-            token = self.token
+            token = self.github_token
             repo = self.repo
             pr_number = self.pr_number
             bot_blacklist = self.bot_blacklist
@@ -98,7 +98,7 @@ class GitHubPullRequestManager(GitHubManager):
                     else datetime.min
                 )
                 if github_username and github_username not in bot_blacklist:
-                    contributor = GitHubContributor(github_username=github_username)
+                    contributor = GitHubContributor(github_username=github_username, github_manager=self)
                     contribution = GitHubPullRequestReviewContribution(
                         id=url, created_at=created_at
                     )
@@ -111,7 +111,7 @@ class GitHubPullRequestManager(GitHubManager):
 
         # PR Comments
         if Flags.has("authorship_for_pr_comments"):
-            token = self.token
+            token = self.github_token
             repo = self.repo
             pr_number = self.pr_number
             bot_blacklist = self.bot_blacklist
@@ -131,7 +131,7 @@ class GitHubPullRequestManager(GitHubManager):
                     else datetime.min
                 )
                 if github_username and github_username not in bot_blacklist:
-                    contributor = GitHubContributor(github_username=github_username)
+                    contributor = GitHubContributor(github_username=github_username, github_manager=self)
                     contribution = GitHubPullRequestCommentContribution(
                         id=url, created_at=created_at
                     )
@@ -144,7 +144,7 @@ class GitHubPullRequestManager(GitHubManager):
 
     #     # PR Issues
     #     if Flags.has("authorship_for_pr_issues"):
-    #         token = self.token
+    #         token = self.github_token
     #         repo = self.repo
     #         pr_number = self.pr_number
     #         bot_blacklist = self.bot_blacklist
@@ -195,7 +195,7 @@ class GitHubPullRequestManager(GitHubManager):
                 )
 
                 if github_username and github_username not in bot_blacklist:
-                    contributor = GitHubContributor(github_username=github_username)
+                    contributor = GitHubContributor(github_username=github_username, github_manager=self)
                     contribution = GitHubPullRequestIssueContribution(
                         id=url, created_at=created_at
                     )
@@ -210,7 +210,7 @@ class GitHubPullRequestManager(GitHubManager):
     #     # PR Issue Comments
     #     if Flags.has("authorship_for_pr_issue_comments"):
 
-    #         token = self.token
+    #         token = self.github_token
     #         repo = self.repo
     #         pr_number = self.pr_number
     #         bot_blacklist = self.bot_blacklist
@@ -246,7 +246,7 @@ class GitHubPullRequestManager(GitHubManager):
 
         if Flags.has("authorship_for_pr_issue_comments"):
 
-            token = self.token
+            token = self.github_token
             repo = self.repo
             bot_blacklist = self.bot_blacklist
 
@@ -272,7 +272,7 @@ class GitHubPullRequestManager(GitHubManager):
                         else datetime.min
                     )
                     if github_username and github_username not in bot_blacklist:
-                        contributor = GitHubContributor(github_username=github_username)
+                        contributor = GitHubContributor(github_username=github_username, github_manager=self)
                         contribution = GitHubPullRequestIssueCommentContribution(
                             id=url, created_at=created_at
                         )
@@ -282,7 +282,7 @@ class GitHubPullRequestManager(GitHubManager):
 
     
     def get_linked_issues_graphql(self) -> list[dict]:
-        token = self.token
+        token = self.github_token
         repo_owner, repo_name = self.repo.split("/")
         pr_number = int(self.pr_number)
 
@@ -333,7 +333,7 @@ class GitHubPullRequestManager(GitHubManager):
 
         if Flags.has("authorship_for_pr_commits"):
 
-            token = self.token
+            token = self.github_token
             repo = self.repo
             pr_number = self.pr_number
             bot_blacklist = self.bot_blacklist
@@ -364,7 +364,7 @@ class GitHubPullRequestManager(GitHubManager):
                 if github_author and github_author.get("login"):
                     username = github_author["login"]
                     if username not in bot_blacklist:
-                        contributor = GitHubContributor(github_username=username)
+                        contributor = GitHubContributor(github_username=username, github_manager=self)
                         contribution = GitHubPullRequestCommitContribution(
                             sha=sha, created_at=commit_date
                         )
@@ -376,7 +376,7 @@ class GitHubPullRequestManager(GitHubManager):
                     email = commit_author_data.get("email")
                     if name or email:
                         contributor = GitCommitContributor(
-                            git_name=name.strip(), git_email=email.strip()
+                            git_name=name.strip(), git_email=email.strip(), orcid_manager=self.orcid_manager
                         )
                         contribution = GitHubPullRequestCommitContribution(
                             sha=sha, created_at=commit_date
@@ -390,7 +390,7 @@ class GitHubPullRequestManager(GitHubManager):
                         name, email = match.groups()
                         if name not in bot_blacklist:
                             contributor = GitCommitContributor(
-                                git_name=name.strip(), git_email=email.strip()
+                                git_name=name.strip(), git_email=email.strip(), orcid_manager=self.orcid_manager
                             )
                             contribution = GitHubPullRequestCommitContribution(
                                 sha=sha, created_at=commit_date
@@ -413,7 +413,7 @@ class GitHubPullRequestManager(GitHubManager):
             "github-username": set(),
         }
         """
-        token = self.token
+        token = self.github_token
         repo = self.repo
         pr_number = self.pr_number
 
@@ -532,7 +532,7 @@ class GitHubPullRequestManager(GitHubManager):
 
     def post_pull_request_comment(self, comment_body: str):
         if Flags.has("post_pr_comment"):
-            token = self.token
+            token = self.github_token
             repo = self.repo
             pr_number = self.pr_number
 

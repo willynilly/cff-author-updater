@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from datetime import datetime, timezone
@@ -10,11 +11,14 @@ from cff_author_updater.contributions.github_pull_request_commit_contribution im
 )
 from cff_author_updater.contributors.git_commit_contributor import GitCommitContributor
 from cff_author_updater.contributors.github_contributor import GitHubContributor
+from cff_author_updater.flags import Flags
 from cff_author_updater.logging_config import get_log_collector
 from cff_author_updater.managers.contribution_manager import ContributionManager
 from cff_author_updater.managers.github_pull_request_manager import (
     GitHubPullRequestManager,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class CffAuthorReview:
@@ -28,6 +32,7 @@ class CffAuthorReview:
         missing_author_invalidates_pr: bool,
         duplicate_authors: set,
         duplicate_author_invalidates_pr: bool,
+        cffconvert_validation_errors: list[str]
     ):
         self.cff_file = cff_file
         self.github_pull_request_manager = github_pull_request_manager
@@ -40,6 +45,7 @@ class CffAuthorReview:
         self.missing_author_invalidates_pr = missing_author_invalidates_pr
         self.duplicate_authors = duplicate_authors
         self.duplicate_author_invalidates_pr = duplicate_author_invalidates_pr
+        self.cffconvert_validation_errors = cffconvert_validation_errors
 
     def _split_pascal_case(self, text: str) -> str:
         """
@@ -54,9 +60,9 @@ class CffAuthorReview:
         original_cff = self.cff_file.original_cff
 
         log_collector = get_log_collector()
-        error_logs = log_collector.get_error_logs()
-        warning_logs = log_collector.get_warning_logs()
-        info_logs = log_collector.get_info_logs()
+        error_logs = log_collector.get_error_logs(is_unique=True)
+        warning_logs = log_collector.get_warning_logs(is_unique=True)
+        info_logs = log_collector.get_info_logs(is_unique=True)
 
         marker: str = "<!-- cff-author-updater-pr-comment -->"
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
@@ -154,8 +160,8 @@ class CffAuthorReview:
 """
             body += (
                 f"***Important: This recommended `{cff_path}` file has not been changed yet on this pull request. "
-                f"It can be manually copied and committed to the repository. For Github users to be recognized, "
-                f"you must use their Github user profile URL as their `alias` in the {cff_path} file."
+                f"It can be manually copied and committed to the repository. For GitHub users to be recognized, "
+                f"you must use their GitHub user profile URL as their `alias` in the {cff_path} file."
             )
             if self.missing_author_invalidates_pr:
                 body += f" If the `{cff_path}` file is missing any new author, the pull request will remain invalid."
@@ -176,16 +182,23 @@ class CffAuthorReview:
 """
 
         if error_logs:
-            body += "\n\n**🚨 Errors:**\n" + "\n".join(["- " + e for e in error_logs])
+            if Flags.has("show_error_messages_in_pr_comment"):
+                body += "\n\n**🚨 Errors:**\n" + "\n".join(["- " + e for e in error_logs])
+            else:
+                body += "\n\n**🚨 Errors:**\n" + "The pull request has errors. Please check the logs for details."
 
         if warning_logs:
-            body += "\n\n**⚠️ Warnings:**\n" + "\n".join(
-                ["- " + w for w in warning_logs]
-            )
+            if Flags.has("show_warning_messages_in_pr_comment"):
+                body += "\n\n**⚠️ Warnings:**\n" + "\n".join(["- " + w for w in warning_logs])
+            else:
+                body += "\n\n**⚠️ Warnings:**\n" + "The pull request has warnings. Please check the logs for details."
 
         if info_logs:
-            body += "\n\n**ℹ️ Info:**\n" + "\n".join(["- " + i for i in info_logs])
-
+            if Flags.has("show_info_messages_in_pr_comment"):
+                body += "\n\n**ℹ️ Info:**\n" + "\n".join(["- " + i for i in info_logs])
+            else:
+                body += "\n\n**ℹ️ Info:**\n" + "The pull request has info messages. Please check the logs for details."
+            
         body += f"""
 
 _Last updated: {timestamp} UTC · Commit [`{commit_sha_short}`]({commit_url})_

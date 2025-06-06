@@ -24,6 +24,21 @@ inputs:
     required: false
     type: boolean
     default: true
+  show_error_messages_in_pr_comment:
+    description: Whether to show error messages in pull request comment (true/false)
+    required: false
+    type: boolean
+    default: true
+  show_warning_messages_in_pr_comment:
+    description: Whether to show warning messages in pull request comment (true/false)
+    required: false
+    type: boolean
+    default: true
+  show_info_messages_in_pr_comment:
+    description: Whether to show info messages in pull request comment (true/false)
+    required: false
+    type: boolean
+    default: true
   authorship_for_pr_commits:
     description: Include PR commit authors and co-authors as authors
     required: false
@@ -91,6 +106,8 @@ outputs:
     description: Log that contains warnings about the CFF author update process.
   info_log:
     description: Log that contains general information about the CFF author update process.
+  debug_log:
+    description: Log that contains debug information about the CFF author update process.
 
 runs:
   using: "composite"
@@ -111,6 +128,9 @@ runs:
         HEAD_BRANCH: ${{ inputs.head_branch }}
         CFF_PATH: ${{ inputs.cff_path }}
         POST_PR_COMMENT: ${{ inputs.post_pr_comment }}
+        SHOW_ERROR_MESSAGES_IN_PR_COMMENT: ${{ inputs.show_error_messages_in_pr_comment }}
+        SHOW_WARNING_MESSAGES_IN_PR_COMMENT: ${{ inputs.show_warning_messages_in_pr_comment }}
+        SHOW_INFO_MESSAGES_IN_PR_COMMENT: ${{ inputs.show_info_messages_in_pr_comment }}
         AUTHORSHIP_FOR_PR_COMMITS: ${{ inputs.authorship_for_pr_commits }}
         AUTHORSHIP_FOR_PR_REVIEWS: ${{ inputs.authorship_for_pr_reviews }}
         AUTHORSHIP_FOR_PR_ISSUES: ${{ inputs.authorship_for_pr_issues }}
