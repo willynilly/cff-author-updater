@@ -94,14 +94,18 @@ class GitHubContributor(Contributor):
                 bio_orcid = orcid_manager.extract_orcid(self.bio)
                 if bio_orcid:
                     self.orcid = bio_orcid
-                elif self.name:
-                    #4. Name field (require at least first and last name)
+                elif self.name and self.email:
+                    #4. Name field (require at least first and last name) and Email
+                    # If name is a single word, we cannot search for ORCID
                     name_parts: list[str] = self.name.split(" ", 1)
                     if len(name_parts) > 1:
                         if self.email:
-                            self.orcid = orcid_manager.search_orcid(
-                                full_name=self.name, email=self.email
+                            # do not include the git name in the id when searching for the ORCID. Only search by email since they may have another name.
+                            orcids: list[str] = orcid_manager.search_orcid(
+                                name=None, email=self.email, return_url=True
                             )
+                            if orcids:
+                                self.orcid = orcids[0]
         if self.orcid and not orcid_manager.validate_orcid(orcid=self.orcid):
             logger.warning(
                 f"@{self.github_username}: ORCID `{self.orcid}` is invalid or unreachable."
