@@ -106,7 +106,7 @@ def test_extract_orcid_from_text_with_valid_orcid_url():
     expected_orcid = "https://orcid.org/0000-0003-1822-6756"
 
     text = f"This is a test text with an ORCID: {expected_orcid}. And this is some additional text."
-    orcid = orcid_manager.extract_orcid(text=text, return_url=True)
+    orcid = orcid_manager.extract_orcid(text=text, find_url=True, return_url=True)
 
     assert orcid == expected_orcid, f"Expected {expected_orcid} but got {orcid}"
 
@@ -118,7 +118,7 @@ def test_extract_first_orcid_from_text_with_two_valid_orcid_urls():
     another_valid_orcid = "https://orcid.org/0000-0003-1822-6758"
 
     text = f"This is a test text with an ORCID: {expected_orcid}. Here's another ORCID: {another_valid_orcid}. And this is some additional text."
-    orcid = orcid_manager.extract_orcid(text=text, return_url=True)
+    orcid = orcid_manager.extract_orcid(text=text, find_url=True, return_url=True)
 
     assert orcid == expected_orcid, f"Expected {expected_orcid} but got {orcid}"
 
@@ -127,7 +127,40 @@ def test_extract_orcid_from_text_with_invalid_orcid_url():
     orcid_manager.clear_cache()
 
     text = "This is a test text with an ORCID: https://orcid.org/00000-0003-1822-6756. And this is some additional text."
-    orcid = orcid_manager.extract_orcid(text=text, return_url=True)
+    orcid = orcid_manager.extract_orcid(text=text, find_url=True, return_url=True)
+
+    expected_orcid = None
+    assert orcid == expected_orcid, f"Expected {expected_orcid} but got {orcid}"
+
+def test_extract_orcid_from_text_with_valid_orcid_id():
+    orcid_manager = OrcidManager()
+    orcid_manager.clear_cache()
+
+    expected_orcid = "0000-0003-1822-6756"
+
+    text = f"This is a test text with an ORCID: {expected_orcid}. And this is some additional text."
+    orcid = orcid_manager.extract_orcid(text=text, find_url=False, return_url=False)
+
+    assert orcid == expected_orcid, f"Expected {expected_orcid} but got {orcid}"
+
+def test_extract_first_orcid_from_text_with_two_valid_orcid_ids():
+    orcid_manager = OrcidManager()
+    orcid_manager.clear_cache()
+
+    expected_orcid = "0000-0003-1822-6756"
+    another_valid_orcid = "0000-0003-1822-6758"
+
+    text = f"This is a test text with an ORCID: {expected_orcid}. Here's another ORCID: {another_valid_orcid}. And this is some additional text."
+    orcid = orcid_manager.extract_orcid(text=text, find_url=False, return_url=False)
+
+    assert orcid == expected_orcid, f"Expected {expected_orcid} but got {orcid}"
+
+def test_extract_orcid_from_text_with_invalid_orcid_id():
+    orcid_manager = OrcidManager()
+    orcid_manager.clear_cache()
+
+    text = "This is a test text with an ORCID: 00000-0003-1822-6756. And this is some additional text."
+    orcid = orcid_manager.extract_orcid(text=text, return_url=False)
 
     expected_orcid = None
     assert orcid == expected_orcid, f"Expected {expected_orcid} but got {orcid}"

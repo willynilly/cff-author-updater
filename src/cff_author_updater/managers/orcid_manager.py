@@ -1,8 +1,8 @@
 import logging
-import re
 from functools import lru_cache
 from typing import cast
 
+import regex
 import requests
 from bs4 import BeautifulSoup, Tag
 
@@ -11,20 +11,49 @@ logger = logging.getLogger(__name__)
 
 class OrcidManager:
 
+    
+
+    ORCID_URL_PATTERN = regex.compile(
+        r"https://orcid\.org/(?P<orcid_id>\d{4}-\d{4}-\d{4}-\d{3}[\dX])",
+        flags=regex.UNICODE | regex.IGNORECASE
+    )
+
+    ORCID_ID_PATTERN_FOR_EXTRACT = regex.compile(
+        r"\b(?P<orcid_id>\d{4}-\d{4}-\d{4}-\d{3}[\dX])\b",
+        flags=regex.UNICODE
+    )
+
+
+    SCRAPE_ORCID_BADGE_PATTERN = regex.compile(r"vcard-details", flags=regex.UNICODE)
+
+    ORCID_ID_FOR_VALIDATE_PATTERN = regex.compile(r"^(?P<orcid_id>\d{4}-\d{4}-\d{4}-\d{3}[\dX])$", flags=regex.UNICODE)
+
+
     def __init__(self):
         self.user_agent = "cff-author-updater"
 
     @staticmethod
-    def extract_orcid(text: str, return_url: bool = True):
+    def extract_orcid(text: str, find_url: bool = True, return_url: bool = True):
         if not text:
             return None
-        match = re.search(r"https?://orcid\.org/(\d{4}-\d{4}-\d{4}-\d{4})", text)
+        
+
+        if find_url:
+            match = OrcidManager.ORCID_URL_PATTERN.search(text)
+        else:
+            match = OrcidManager.ORCID_ID_PATTERN_FOR_EXTRACT.search(text)
+        
         if not match:
             return None
-        orcid_id = match.group(1)
+
+        orcid_id = match.group("orcid_id")
+
         if return_url:
-            return f"https://orcid.org/{orcid_id}"
+            url = f"https://orcid.org/{orcid_id}"
+            return url.casefold()
+
         return orcid_id
+
 
     @lru_cache(maxsize=None, typed=True)
     def scrape_orcid_from_github_profile(self, github_username: str, is_url: bool=True) -> str | None:
@@ -42,14 +71,17 @@ class OrcidManager:
             soup = BeautifulSoup(html, "html.parser")
 
             # Step 1: Find the profile details section
-            details = cast(Tag | None, soup.find("ul", class_=re.compile(r"vcard-details")))
+            details = cast(Tag | None, soup.find(
+                "ul",
+                class_=lambda cls: bool(cls) and bool(OrcidManager.SCRAPE_ORCID_BADGE_PATTERN.search(cls))
+            ))
 
             if details is None:
                 logger.info(f"No vcard-details section found for @{github_username}")
                 return None
 
             # Step 2: Look for ORCID link in this section only
-            orcid_link = cast(Tag | None, details.find("a", href=re.compile(r"https://orcid\.org/\d{4}-\d{4}-\d{4}-\d{4}")))
+            orcid_link = cast(Tag | None, details.find("a", href=lambda href: bool(OrcidManager.ORCID_URL_PATTERN.match(href or ""))))
             
             if orcid_link:
                 href_value = orcid_link.get("href")
@@ -59,7 +91,7 @@ class OrcidManager:
                     if is_url:
                         return linked_orcid
                     else:
-                        return self.extract_orcid(text=linked_orcid, return_url=False)
+                        return self.extract_orcid(text=linked_orcid, find_url=True, return_url=False)
                 else:
                     logger.warning(f"ORCID link href is not a string for @{github_username}: {href_value!r}")
             else:
@@ -74,20 +106,28 @@ class OrcidManager:
     def validate_orcid(self, orcid: str, is_url: bool = True) -> bool:
         if orcid is None or not isinstance(orcid, str):
             return False
+
         if not is_url:
-            # If it's not a URL, assume it's an ORCID ID
-            orcid_id = orcid
+            orcid_id = orcid.strip()
         else:
-            orcid_id: str | None = self.extract_orcid(text=orcid, return_url=False)
-        if not orcid_id or not re.match(r"^\d{4}-\d{4}-\d{4}-\d{4}$", orcid_id):
+            orcid_id: str | None = self.extract_orcid(text=orcid, find_url=True, return_url=False)
+            if orcid_id:
+                orcid_id = orcid_id.strip()
+
+        # Validate ORCID id format 
+
+        if not orcid_id or not OrcidManager.ORCID_ID_FOR_VALIDATE_PATTERN.match(orcid_id):
             return False
+
         url = f"https://pub.orcid.org/v3.0/{orcid_id}"
         headers = {"Accept": "application/json"}
+
         try:
             resp = requests.get(url, headers=headers, timeout=5)
             return resp.status_code == 200
         except Exception:
             return False
+
     
     @lru_cache(maxsize=None, typed=True)
     def search_orcid(self, name: str | None, email: str | None = None, return_url: bool = True) -> list[str]:
@@ -170,7 +210,7 @@ class OrcidManager:
                 - list[str]: A list of other names associated with the ORCID ID.
         """
         if is_url:
-            orcid_id: str | None = self.extract_orcid(text=orcid, return_url=False)
+            orcid_id: str | None = self.extract_orcid(text=orcid, find_url=True, return_url=False)
             if not orcid_id:
                 logger.warning(f"Invalid ORCID URL provided: {orcid}")
                 return [], '', '', []

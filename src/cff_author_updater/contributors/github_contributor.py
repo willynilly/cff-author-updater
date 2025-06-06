@@ -1,18 +1,21 @@
 import logging
-import re
+
+import regex  # Unicode-aware regex module
 
 from cff_author_updater.contributors.contributor import Contributor
 from cff_author_updater.managers.github_manager import GitHubManager
 from cff_author_updater.managers.orcid_manager import OrcidManager
 
-GITHUB_USER_PROFILE_URL_REGEX = re.compile(
-    r"^https:\/\/github\.com\/(?P<username>[a-zA-Z\d](?:[a-zA-Z\d]|-(?=[a-zA-Z\d])){0,38})$"
-)
+# Current GitHub OFFICIAL username rules: ASCII only
+# Future-proof version: restrict to \p{L}\p{N} if needed later
 
+GITHUB_USER_PROFILE_URL_REGEX = regex.compile(
+    r"^https://github\.com/(?P<username>[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38})$",
+    flags=regex.IGNORECASE | regex.UNICODE
+)
 
 def is_github_user_profile_url(url: str) -> bool:
     return GITHUB_USER_PROFILE_URL_REGEX.match(url) is not None
-
 
 def parse_github_username_from_github_user_profile_url(url: str) -> str | None:
     match = GITHUB_USER_PROFILE_URL_REGEX.match(url)
@@ -86,12 +89,12 @@ class GitHubContributor(Contributor):
             self.orcid = linked_orcid
         elif self.blog:
             # 2. Blog field
-            blog_orcid = orcid_manager.extract_orcid(self.blog)
+            blog_orcid = orcid_manager.extract_orcid(self.blog, find_url=True, return_url=True)
             if blog_orcid:
                 self.orcid = blog_orcid
             elif self.bio:
                 # 3. Bio field
-                bio_orcid = orcid_manager.extract_orcid(self.bio)
+                bio_orcid = orcid_manager.extract_orcid(self.bio, find_url=True, return_url=True)
                 if bio_orcid:
                     self.orcid = bio_orcid
                 elif self.name and self.email:

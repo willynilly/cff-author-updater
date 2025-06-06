@@ -1,7 +1,7 @@
 import os
-import re
 from datetime import datetime
 
+import regex
 import requests
 
 from cff_author_updater.contributions.github_pull_request_comment_contribution import (
@@ -345,9 +345,11 @@ class GitHubPullRequestManager(GitHubManager):
             r.raise_for_status()
             commits = r.json()
 
-            coauthor_regex = re.compile(
-                r"^Co-authored-by:\s*(.+?)\s*<(.+?)>$", re.IGNORECASE
-            )
+            # Regex to match co-authors in commit messages
+            coauthor_regex = regex.compile(
+                r"^Co-authored-by:\s*(?P<name>.+?)\s*<(?P<email>[^<>@\s]+@[^<>@\s]+\.[^<>@\s]+)>\s*$",
+                flags=regex.IGNORECASE | regex.UNICODE
+)
 
             for c in commits:
                 sha = c.get("sha")
@@ -387,7 +389,8 @@ class GitHubPullRequestManager(GitHubManager):
                 for line in c.get("commit", {}).get("message", "").splitlines():
                     match = coauthor_regex.match(line.strip())
                     if match:
-                        name, email = match.groups()
+                        name = match.group("name")
+                        email = match.group("email")
                         if name not in bot_blacklist:
                             contributor = GitCommitContributor(
                                 git_name=name.strip(), git_email=email.strip(), orcid_manager=self.orcid_manager
