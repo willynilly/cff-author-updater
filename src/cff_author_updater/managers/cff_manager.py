@@ -318,7 +318,12 @@ class CffManager:
 
         contributors: set[Contributor] = set(contribution_manager.contributors)
 
+        print('debug: before contributors', [c.to_dict() for c in contributors])
+
         for contributor in contributors:
+
+            print('debug: contributor', contributor.to_dict(), contributor.__class__.__name__)
+
 
             if self.github_pull_request_manager.should_skip_contributor(contributor, skip_commands):
                 identifier = self.create_identifier_of_contributor_for_logger(contributor)
@@ -358,8 +363,12 @@ class CffManager:
                 raise Exception("Invalid contributor class.")
 
             if new_cff_author is None:
+                print('debug: new_cff_author is None, skipping contributor')
                 continue
             else:
+
+                print('debug: new_cff_author', new_cff_author.to_dict(), new_cff_author.__class__.__name__)
+
                 # this checks the contributor for skipping after it has been enriched with orcid information 
                 if self.github_pull_request_manager.should_skip_contributor(contributor=new_cff_author, skip_commands=skip_commands):
                     identifier = self.create_identifier_of_cff_author_for_logger(cff_author=new_cff_author)
@@ -437,6 +446,10 @@ class CffManager:
                 f.write("info_log<<EOF\n" + "\n".join(info_logs) + "\nEOF\n")
 
         missing_authors: set = contributors - already_in_cff_contributors
+        print('debug: after contributors', [c.to_dict() for c in contributors])
+        print('debug: already_in_cff_contributors', [c.to_dict() for c in already_in_cff_contributors])
+        print('debug: missing_authors', [c.to_dict() for c in missing_authors])
+
         if Flags.has("post_pr_comment") and pr_number:
             
             cff_author_review: CffAuthorReview = CffAuthorReview(
