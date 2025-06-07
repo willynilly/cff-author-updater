@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 
@@ -33,6 +34,7 @@ from cff_author_updater.managers.github_manager import GitHubManager
 UNKNOWN_CONTRIBUTOR_KEY = ("unknown", None)
 DEFAULT_GITHUB_ACTION_BOT = "github-actions[bot]"
 
+logger = logging.getLogger(__name__)
 
 class GitHubPullRequestManager(GitHubManager):
 
@@ -373,9 +375,11 @@ class GitHubPullRequestManager(GitHubManager):
                         contribution_manager.add_contribution(contribution, contributor)
                 elif commit_author_data:
                     name = commit_author_data.get("name")
+                    logger.debug(f'commit author name: {name}')
                     if name in bot_blacklist:
                         continue
                     email = commit_author_data.get("email")
+                    logger.debug(f'commit author email: {email}')
                     if name or email:
                         contributor = GitCommitContributor(
                             git_name=name.strip(), git_email=email.strip(), orcid_manager=self.orcid_manager
