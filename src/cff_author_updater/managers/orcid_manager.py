@@ -136,7 +136,6 @@ class OrcidManager:
         Returns:
             list[str]: A list of ORCID IDs matching all of the search criteria.
         """
-        logger.debug(f'search_orcid name:{name} email:{email}')
         headers: dict = {"Accept": "application/vnd.orcid+json"}
 
         query_parts: list[str] = []
