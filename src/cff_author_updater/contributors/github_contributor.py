@@ -88,7 +88,7 @@ class GitHubContributor(Contributor):
         if not self.orcid and self.github_username:
             # 1. Badge from profile
             linked_orcid: str | None = orcid_manager.scrape_orcid_from_github_profile(github_username=self.github_username)
-            logger.debug(f"{linked_orcid}")
+            logger.debug(f"linked orcid: {linked_orcid}")
             if linked_orcid:
                 self.orcid = linked_orcid
 
