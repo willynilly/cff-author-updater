@@ -19,6 +19,7 @@ class GitCommitContributor(Contributor):
             # do not include the git name in the id when searching for the ORCID. Only search by email since they may have another name.
             orcids: list[str] = orcid_manager.search_orcid(name=None, email=self.git_email, return_url=True)
             
+            logger.debug(f'GitCommitContributor.__init__: orcids: {orcids}')
             if not orcids:
                 logger.info(f"`{self.git_email}`: No ORCID found.")
             elif orcid_manager.validate_orcid(orcids[0], is_url=True):
