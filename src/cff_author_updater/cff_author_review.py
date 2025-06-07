@@ -1,8 +1,8 @@
 import logging
 import os
-import re
 from datetime import datetime, timezone
 
+import regex
 import yaml
 
 from cff_author_updater.cff_file import CffFile
@@ -47,11 +47,13 @@ class CffAuthorReview:
         self.duplicate_author_invalidates_pr = duplicate_author_invalidates_pr
         self.cffconvert_validation_errors = cffconvert_validation_errors
 
+  
     def _split_pascal_case(self, text: str) -> str:
         """
-        Splits a PascalCase string into words.
+        Splits a PascalCase string into words, Unicode-friendly.
         """
-        return re.sub(r"(?<!^)(?=[A-Z])", " ", text)
+        return regex.sub(r"(?<!^)(?=\p{Lu})", " ", text)
+
 
     def get_review(self) -> str:
 

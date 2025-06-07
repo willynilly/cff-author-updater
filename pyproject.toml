@@ -31,7 +31,7 @@ classifiers = [
     "Topic :: Software Development",
     "Topic :: Utilities"
 ]
-dependencies = ["requests>=2.32.3", "cffconvert>=2.0.0", "pyyaml>=6.0.2", "beautifulsoup4>=4.13.4"]
+dependencies = ["requests>=2.32.3", "cffconvert>=2.0.0", "pyyaml>=6.0.2", "beautifulsoup4>=4.13.4", "regex>=2024.11.6"]
 
 [project.urls]
 Homepage = "https://github.com/willynilly/cff-author-updater"

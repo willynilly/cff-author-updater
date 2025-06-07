@@ -54,7 +54,7 @@ jobs:
           cache: 'pip' # optional for cff-author-updater
 
       - name: Run cff-author-updater
-        uses: willynilly/cff-author-updater@v2.2.0
+        uses: willynilly/cff-author-updater@v2.3.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           base_branch: main
@@ -144,10 +144,10 @@ To use this action in your repository:
 - ✅ You must reference this action in your workflow as:
 
   ```yaml
-  uses: willynilly/cff-author-updater@v2.2.0
+  uses: willynilly/cff-author-updater@v2.3.0
   ```
 
-- ✅ For reproducibility, it is recommended to use version tags like `@v2.2.0`.
+- ✅ For reproducibility, it is recommended to use version tags like `@v2.3.0`.
 
 ---
 
@@ -160,14 +160,22 @@ Contributors are grouped and processed according to their origin and identity me
 When a contributor is associated with a GitHub account:
 
 - **Individuals** (`type == "User"`):
-  - Mapped to CFF `person`
-  - Fields used: `given-names`, `family-names`, `alias`, `email`, `orcid`
+  - Mapped to CFF `person` if `given-names` and `family-names` is available.
+  - Otherwise, mapped to CFF `entity` using CFF `name`.
+  - CFF Fields used: `given-names` (from GitHub or ORCID profiles if available), `family-names` (from GitHub or ORCID profiles if available), `alias` (is GitHub user profile URL), `email` (from GitHub profile if available), `orcid` (from GitHub profile or ORCID email search if available)
 
 - **Organizations** (`type == "Organization"`):
   - Mapped to CFF `entity`
-  - Fields used: `name`, `alias`, `email` (if provided by GitHub)
+  - CFF Fields used: `name` (from GitHub or ORCID profiles if available), `alias` (is GitHub user profile URL), `email` (from GitHub profile if available)
 
-> ORCID enrichment is only applied to individuals (`type: person`). The GitHub user profile URL is used for the `alias`
+
+> GitHub enrichment currently only consists of adding the following metadata from the GitHub user profile: name, email, bio, and blog (i.e., website). The bio and blog are not currently mapped to CFF fields. However, they are used to extract missing ORCID information.  
+
+> ORCID enrichment currently only consists of adding an ORCID and, if available, a name, to a CFF author if it cannot find one from the GitHub profile metadata. It is only applied to individuals GitHub contributors (`type: person`) that are new authors. Moreover, it requires one of several mechanisms to acquire the ORCID, and subsequently the author name associated with that ORCID:
+
+1. The GitHub account has been linked to their ORCID account. The GitHub action scrapes the ORCID from a badge on their user profile page.
+2. GitHub user profile has an ORCID listed as their website/blog, or they list it in their bio. The GitHub action uses the GitHub API to extract it from this user profile data.
+3. GitHub user has shared their public email and then this email is used to search for a corresponding ORCID account using the ORCID API. Most ORCID users do not make their email addresses public, so this method rarely is used. 
 
 ---
 
@@ -176,16 +184,16 @@ When a contributor is associated with a GitHub account:
 If a commit or co-author entry lacks a GitHub account (i.e. appears as a raw name/email):
 
 - These are **initially treated as `entities`**.
-- If both a name and email are present, and the contributor matches an existing `person`, they are identified as that person.
-- If a name has only a single part (e.g. no `family-names`), the contributor is **retained as an `entity`**, and a warning is posted with the commit SHA.
-- If only an email is provided (no name), the contributor is skipped with a warning.
-- ORCID search is attempted to enrich metadata when a name is full enough (two parts).
+- However, if the contributor matches an existing `person` in the CFF through the **deduplication strategy**, they are identified as that person.
+- If a name has only a single part (e.g. no `family-names`), the contributor is **retained as an `entity`**.
+- If only an email is provided (i.e., no name), and a name cannot be found on an ORCID profile associated with that email, then the contributor is skipped.
+- ORCID enrichment currently only consists of adding an ORCID and a missing author name. It is only applied to git commiters that have an email address, and whose ORCID profile has made that email address public. Most ORCID accounts do not make their email addresses public on their profiles, so this enrichment rarely occurs.
 
-#### Fields:
-- `person`: `given-names`, `family-names`, `email`, `orcid`
-- `entity`: `name`, `email` (if available), `alias` (optional)
+#### CFF Fields:
+- `person`: `given-names` (from git commit name or ORCID profile if available), `family-names` (from git commit name or ORCID profile is available), `email` (from git commit email if available), `orcid` (from git commit email and ORCID email search if available)
+- `entity`: `name`, `email` (from git commit email if available)
 
-> ⚠️ Contributors with missing `family-names` or emails are preserved as `entity` entries and clearly marked in warnings.
+> ⚠️ Contributors with missing `given-names`, `family-names` or `email` are preserved as `entity` entries.
 
 ---
 
@@ -201,7 +209,9 @@ If a commit or co-author entry lacks a GitHub account (i.e. appears as a raw nam
 | GitHub User (organization) | CERN          | ❌ No          | ✅ Yes             | ✅ Yes                   | `cern-official`  | Added as `entity`                                          |
 | Non-GitHub (raw commit)    | Jane Doe      | ✅ Yes         | ✅ Full            | ❌ No                    | —                | Added as `person`                                          |
 | Non-GitHub (raw commit)    | Jane          | ✅ Yes         | ✅ Partial         | ❌ No                    | —                | Added as `entity` with warning                             |
-| Non-GitHub (raw commit)    | *N/A*         | ✅ Yes         | ❌ No              | ❌ No                    | —                | ❌ **Skipped**, warning: name required for CFF entity       |
+| Non-GitHub (raw commit)    | *N/A*        | ✅ Yes         | ❌ No, and not found on Orcid profile through public email              | ❌ No                    | —                | ❌ **Skipped**, warning: name required for CFF entity       |
+| Non-GitHub (raw commit)    | Jane Doe        | ✅ Yes         | ❌ No, but ✅ Full name found on ORCID profile through public email              | ❌ No                    | —                | Added as `person`       |
+| Non-GitHub (raw commit)    | Jane        | ✅ Yes         | ❌ No, but ✅ Partial name found on ORCID profile through public email              | ❌ No                    | —                | Added as `entity` with warning       |
 | Non-GitHub (raw commit)    | Jane Doe      | ❌ No          | ✅ Full            | ❌ No                    | —                | Added as `entity` with warning if needed                   |
 | Non-GitHub (raw commit)    | *N/A*         | ❌ No          | ❌ No              | ❌ No                    | —                | ❌ **Skipped**, warning: name and email both missing        |
 
