@@ -19,7 +19,7 @@ keywords:
   - GitHub
   - metadata
 license: Apache-2.0
-version: "2.2.0"
+version: "2.3.0"
 date-released: "2025-05-27"
 references:
   - title: cffconvert
