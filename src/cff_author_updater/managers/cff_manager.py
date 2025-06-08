@@ -143,8 +143,12 @@ class CffManager:
 
         new_cff_author_data: dict = {}
 
-        # skip the github contributor if it has an invalid github user name
+        # do not create a github contributor if it has an invalid github user name
         if not is_valid_github_user:
+            # make it a warning instead of an error because the github user may have closed
+            # their account and we would not want to invalidate the PR for such users with
+            # an error, until/unless we update the skip feature to filter out all errors
+            # that contain all the skipped users.
             logger.warning(
                 f"Cannot create CFF author for @{github_username}: invalid GitHub username."
             )
@@ -324,26 +328,20 @@ class CffManager:
 
         cff.setdefault("authors", [])
 
-        # validate old authors
         duplicate_authors: set[CffAuthorContributor] = self.validate_old_cff_authors_are_unique(cff=cff)
 
-        # update new authors
-        already_in_cff_contributors: set[GitCommitContributor | GitHubContributor] = (
-            set()
-        )
-
         contributors: set[Contributor] = set(contribution_manager.contributors)
-
-        logger.debug(f'before contributors {[c.to_dict() for c in contributors]}')
+        contributors_already_author_in_cff: set[Contributor] = set()
+        contributors_skipped_for_authorship: set[Contributor] = set()
+        contributors_added_to_cff: set[Contributor] = set()
+        contributors_error_creating_author: set[Contributor] = set()
 
         for contributor in contributors:
 
-            logger.debug(f'contributor {contributor.to_dict()} {contributor.__class__.__name__}')
-
-
-            if self.github_pull_request_manager.should_skip_contributor(contributor, skip_commands):
+            if self.github_pull_request_manager.should_skip_contributor_for_authorship(contributor, skip_commands):
                 identifier = create_identifier_of_contributor_for_logger(contributor)
-                logger.info(f"Skipping contributor based on skip command: {identifier}")
+                logger.info(f"Skipping contributor for authorship based on skip command: {identifier}")
+                contributors_skipped_for_authorship.add(contributor)
                 continue
 
             new_cff_author: CffAuthorContributor | None = None
@@ -379,16 +377,16 @@ class CffManager:
                 raise Exception("Invalid contributor class.")
 
             if new_cff_author is None:
-                logger.debug('new_cff_author is None, skipping contributor')
+                # there was some error creating the cff author, so we will skip it
+                contributors_error_creating_author.add(contributor) 
                 continue
             else:
 
-                logger.debug(f'new_cff_author {new_cff_author.to_dict(), new_cff_author.__class__.__name__}')
-
                 # this checks the contributor for skipping after it has been enriched with orcid information 
-                if self.github_pull_request_manager.should_skip_contributor(contributor=new_cff_author, skip_commands=skip_commands):
+                if self.github_pull_request_manager.should_skip_contributor_for_authorship(contributor=new_cff_author, skip_commands=skip_commands):
                     identifier = create_identifier_of_cff_author_for_logger(cff_author=new_cff_author)
                     logger.info(f"Skipping contributor based on skip command: {identifier}")
+                    contributors_skipped_for_authorship.add(contributor)
                     continue
 
                 if any(
@@ -402,13 +400,14 @@ class CffManager:
                     identifier: str = create_identifier_of_cff_author_for_logger(
                         cff_author=new_cff_author
                     )
-                    already_in_cff_contributors.add(contributor)
+                    contributors_already_author_in_cff.add(contributor)
                     # Correct behavior: this is OK — the author is now in CFF
                     logger.info(f"{identifier}: Already exists in CFF file — OK.")
                     continue
                     
 
             cff["authors"].append(new_cff_author.cff_author_data)
+            contributors_added_to_cff.add(contributor)
 
         self.cff_file.cff = cff
         updated_cff_is_valid_cff: bool = original_cff_is_valid_cff
@@ -421,20 +420,20 @@ class CffManager:
                 cffconvert_validation_errors += e.cffconvert_validation_errors
 
         
-        missing_authors: set[Contributor] = contributors - already_in_cff_contributors
+        contributors_qualified_for_authorship: set[Contributor] = contributors - contributors_skipped_for_authorship
+        missing_authors: set[Contributor] = contributors_qualified_for_authorship - contributors_already_author_in_cff
+        new_authors: set[Contributor] = contributors_added_to_cff
+        cannot_create_authors: set[Contributor] = contributors_error_creating_author
 
-        self._add_additional_logs(contribution_manager=contribution_manager, missing_authors=missing_authors, duplicate_authors=duplicate_authors, cffconvert_validation_errors=cffconvert_validation_errors)
-
-        logger.debug(f'after contributors {[c.to_dict() for c in contributors]}')
-        logger.debug(f'already_in_cff_contributors {[c.to_dict() for c in already_in_cff_contributors]}')
-        logger.debug(f'missing_authors {[c.to_dict() for c in missing_authors]}')
+        self._add_additional_logs(new_authors=new_authors, missing_authors=missing_authors, cannot_create_authors=cannot_create_authors, duplicate_authors=duplicate_authors, cffconvert_validation_errors=cffconvert_validation_errors)
 
         if Flags.has("post_pr_comment") and pr_number:
             
-            cff_author_review: CffAuthorReview = CffAuthorReview(
+            cff_author_review = CffAuthorReview(
                 cff_file=self.cff_file,
                 github_pull_request_manager=self.github_pull_request_manager,
                 contribution_manager=contribution_manager,
+                contributors_skipped_for_authorship=contributors_skipped_for_authorship,
                 missing_authors=missing_authors,
                 missing_author_invalidates_pr=Flags.has(
                     "missing_author_invalidates_pr"
@@ -445,6 +444,7 @@ class CffManager:
                 ),
                 cffconvert_validation_errors=cffconvert_validation_errors
             )
+
 
             self.github_pull_request_manager.post_pull_request_comment(
                 comment_body=cff_author_review.get_review(),
@@ -504,32 +504,40 @@ class CffManager:
 
         return missing_authors, duplicate_authors, cffconvert_validation_errors
 
-    
+    def _add_additional_logs(
+        self,
+        new_authors: set[Contributor],
+        missing_authors: set[Contributor],
+        cannot_create_authors: set[Contributor],
+        duplicate_authors: set[CffAuthorContributor],
+        cffconvert_validation_errors: list[str]
+    ) -> None:
+        new_authors_count = len(new_authors)
 
-    def _add_additional_logs(self, contribution_manager: ContributionManager, missing_authors: set[Contributor], duplicate_authors: set[CffAuthorContributor], cffconvert_validation_errors: list[str]) -> None:
-        new_authors_count = len(contribution_manager.contributors)
         if new_authors_count > 0:
             logger.info(
-                f"The recommended `{self.cff_file.cff_path}` file has been updated with {new_authors_count} new authors."
+                f"The recommended `{self.cff_file.cff_path}` file has been updated with {new_authors_count} new author(s)."
             )
-            
 
-            if Flags.has("missing_author_invalidates_pr") and len(missing_authors):
+        if len(missing_authors):
+            if Flags.has("missing_author_invalidates_pr"):
                 logger.error(
-                    f"Pull request is invalidated because {len(missing_authors)} new author(s) are missing from the `{self.cff_file.cff_path}` file."
+                    f"Pull request is invalidated because {len(missing_authors)} author(s) are missing from the `{self.cff_file.cff_path}` file."
                 )
+            else:
+                logger.warning(
+                    f"Pull request is missing {len(missing_authors)} author(s) from the `{self.cff_file.cff_path}` file."
+                )
+            for contributor in missing_authors:
+                identifier = create_identifier_of_contributor_for_logger(contributor)
 
-                for contributor in missing_authors:
-                    identifier = create_identifier_of_contributor_for_logger(contributor)
-                    
-                    reason = ""
-                    
+                reason = ""
+
+                # FIRST — did author creation fail?
+                if contributor in cannot_create_authors:
                     if isinstance(contributor, GitHubContributor):
-                        reason = (
-                            f"unmatched CFF author — possible cause: existing `{self.cff_file.cff_path}` entry is missing an 'alias' with this GitHub profile URL: "
-                            f"{contributor.github_user_profile_url}"
-                        )
-                    
+                        reason = "cannot generate CFF author — invalid GitHub username or missing required fields"
+
                     elif isinstance(contributor, GitCommitContributor):
                         reasons = []
                         if not contributor.git_name:
@@ -539,22 +547,43 @@ class CffManager:
                         if reasons:
                             reason = "cannot generate CFF author (" + "; ".join(reasons) + ")"
                         else:
-                            reason = "unmatched CFF author (possible formatting mismatch)"
-                    
+                            reason = "cannot generate CFF author (unknown error)"
+
                     else:
-                        reason = "unknown contributor type"
-                    
-                    logger.error(f"Missing author: {identifier} — {reason}")
-                
+                        reason = "cannot generate CFF author — unknown contributor type"
+
+                # ELSE — author creation succeeded, but unmatched in CFF
+                else:
+                    if isinstance(contributor, GitHubContributor):
+                        reason = (
+                            f"unmatched CFF author — possible cause: existing `{self.cff_file.cff_path}` entry is missing an 'alias' with this GitHub profile URL: "
+                            f"{contributor.github_user_profile_url}"
+                        )
+
+                    elif isinstance(contributor, GitCommitContributor):
+                        reason = "unmatched CFF author (possible formatting mismatch)"
+
+                    else:
+                        reason = "unmatched CFF author — unknown contributor type"
+
+                missing_author_msg: str = f"Missing author: {identifier} — {reason}"
+                if Flags.has("missing_author_invalidates_pr"):
+                    logger.error(missing_author_msg)
+                else:
+                    logger.warning(missing_author_msg)
+
+
         if Flags.has("duplicate_author_invalidates_pr") and len(duplicate_authors):
             logger.error(
                 f"Pull request is invalidated because there is a duplicate author in the `{self.cff_file.cff_path}` file."
             )
+
         if Flags.has("invalid_cff_invalidates_pr") and len(cffconvert_validation_errors):
             logger.error(
                 f"Pull request is invalidated because the `{self.cff_file.cff_path}` file is not valid CFF.\n"
                 + "\n".join(cffconvert_validation_errors)
             )
+
 
     def create_json_for_contribution_manager(
         self, contribution_manager: ContributionManager

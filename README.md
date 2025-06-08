@@ -54,7 +54,7 @@ jobs:
           cache: 'pip' # optional for cff-author-updater
 
       - name: Run cff-author-updater
-        uses: willynilly/cff-author-updater@v2.3.0
+        uses: willynilly/cff-author-updater@v2.4.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           base_branch: main
@@ -144,10 +144,10 @@ To use this action in your repository:
 - ✅ You must reference this action in your workflow as:
 
   ```yaml
-  uses: willynilly/cff-author-updater@v2.3.0
+  uses: willynilly/cff-author-updater@v2.4.0
   ```
 
-- ✅ For reproducibility, it is recommended to use version tags like `@v2.3.0`.
+- ✅ For reproducibility, it is recommended to use version tags like `@v2.4.0`.
 
 ---
 
@@ -265,9 +265,13 @@ You can skip or unskip contributors for authorship by writing a comment with one
 - The Action scans **all PR comments**, ordered chronologically.
 - The most recent command for each contributor field wins.
 - If a contributor is currently skipped for authorship, the Action will:
-  - **Exclude them** from proposed CFF updates
+  - **Exclude them** from recommended CFF updates
   - **Exclude them** from "missing author" checks
-  - **Exclude them** from duplicate checks
+
+  ⚠️ Important: Skipping a contributor does NOT remove them from the CFF file if they were already present, and does NOT prevent a user from manually adding them to the CFF file in this pull request.
+  Skipped contributors are still included in duplicate author checks if present in the CFF file.
+  The skip command only prevents the Action from recommending or requiring their addition as a new author.
+
 - You can **change your mind** at any time by posting an `unskip-authorship` command.
 - Deleting a comment with a skip command works as if you never wrote that comment.
 - Deleting a comment with an unskip command works as if you never wrote that comment. 
