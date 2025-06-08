@@ -489,9 +489,9 @@ class GitHubPullRequestManager(GitHubManager):
 
         return final_skips
 
-    def should_skip_contributor(self, contributor: Contributor, skip_commands: dict[str, set[str]]) -> bool:
+    def should_skip_contributor_for_authorship(self, contributor: Contributor, skip_commands: dict[str, set[str]]) -> bool:
         """
-        Returns True if this contributor should be skipped based on skip_commands.
+        Returns True if this contributor should be skipped for authorship based on skip_commands.
         """
 
         if not Flags.has("can_skip_authorship"):

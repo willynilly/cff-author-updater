@@ -9,6 +9,7 @@ from cff_author_updater.cff_file import CffFile
 from cff_author_updater.contributions.github_pull_request_commit_contribution import (
     GitHubPullRequestCommitContribution,
 )
+from cff_author_updater.contributors.contributor import Contributor
 from cff_author_updater.contributors.git_commit_contributor import GitCommitContributor
 from cff_author_updater.contributors.github_contributor import GitHubContributor
 from cff_author_updater.flags import Flags
@@ -28,7 +29,8 @@ class CffAuthorReview:
         cff_file: CffFile,
         github_pull_request_manager: GitHubPullRequestManager,
         contribution_manager: ContributionManager,
-        missing_authors: set,
+        contributors_skipped_for_authorship: set[Contributor],
+        missing_authors: set[Contributor],
         missing_author_invalidates_pr: bool,
         duplicate_authors: set,
         duplicate_author_invalidates_pr: bool,
@@ -41,6 +43,7 @@ class CffAuthorReview:
         self.github_action_version = self.github_pull_request_manager.github_action_version
         self.repo_for_compare = self.github_pull_request_manager.repo_for_compare
         self.contribution_manager = contribution_manager
+        self.contributors_skipped_for_authorship = contributors_skipped_for_authorship
         self.missing_authors = missing_authors
         self.missing_author_invalidates_pr = missing_author_invalidates_pr
         self.duplicate_authors = duplicate_authors
@@ -88,32 +91,37 @@ class CffAuthorReview:
             f"\n**Pull Request Status: {body_pr_validation_status_value}**\n"
         )
 
-        body_contributions = "\n**New Authors & Contributions:**\n"
+        body_contributions = "\n**Contributors & Contributions in Pull Request:**\n"
 
-        new_authors = [
+        contributors_in_pr = [
             contributor
             for contributor in self.contribution_manager.contributors_sorted_by_first_contribution
-            if contributor in self.contribution_manager._contributions_by_contributor
         ]
 
-        if new_authors:
-            for contributor in new_authors:
+
+        if contributors_in_pr:
+            for contributor in contributors_in_pr:
                 if contributor in self.missing_authors:
-                    missing_author_message = f" (Missing from `{cff_path}`)"
+                    missing_author_message = f" (Missing author from `{cff_path}`)"
                 else:
                     missing_author_message = ""
 
+                if contributor in self.contributors_skipped_for_authorship:
+                    skipped_for_authorship_message = " (Skipped for recommended or required authorship)"
+                else:
+                    skipped_for_authorship_message = ""
+
                 if isinstance(contributor, GitHubContributor):
-                    body_contributions += f"\n#### @{contributor.github_username}{missing_author_message}\n"
+                    body_contributions += f"\n#### @{contributor.github_username}{missing_author_message}{skipped_for_authorship_message}\n"
                 elif isinstance(contributor, GitCommitContributor):
                     name = contributor.git_name
                     email = contributor.git_email
                     if email:
                         body_contributions += (
-                            f"\n#### {email}{missing_author_message}\n"
+                            f"\n#### {email}{missing_author_message}{skipped_for_authorship_message}\n"
                         )
                     else:
-                        body_contributions += f"\n#### {name}{missing_author_message}\n"
+                        body_contributions += f"\n#### {name}{missing_author_message}{skipped_for_authorship_message}\n"
                 else:
                     raise Exception(
                         "Invalid contributor: Must be GitHubContributor or GitCommitContributor."
@@ -142,8 +150,13 @@ class CffAuthorReview:
                             body_contributions += f"  - [`{contribution.id[:7]}`](https://github.com/{self.repo_for_compare}/commit/{contribution.id})\n"
                         else:
                             body_contributions += f"  - [Link]({contribution.id})\n"
+            
+            body_contributions += "\n"
+            body_contributions += f'**Note:** Contributors marked "(Skip for recommended or required authorship)" were manually skipped for new authorship consideration. If they were already present in the `{cff_path}` file, or if a user manually adds them to the `{cff_path}` file as part of this pull request, their author entry will remain. The skip command only prevents the GitHub Action from recommending or requiring authorship.'            
+            body_contributions += "\n"
+
         else:
-            body_contributions += "\n**No new authors.**\n"
+            body_contributions += "\n**No contributions.**\n"
 
         body = f"""
 {marker}
@@ -166,7 +179,7 @@ class CffAuthorReview:
                 f"you must use their GitHub user profile URL as their `alias` in the {cff_path} file."
             )
             if self.missing_author_invalidates_pr:
-                body += f" If the `{cff_path}` file is missing any new author, the pull request will remain invalid."
+                body += f" If the `{cff_path}` file is missing any contributor qualified for authorship from the pull request, the pull request will remain invalid. You may [manually skip or unskip specific contributors for authorship](https://github.com/willynilly/cff-author-updater/blob/v{self.github_action_version}/README.md#-manual-overrides-skip--unskip-contributors-for-authorship) by posting special pull request comments."
             body += "***"
         else:
             duplicate_author_error_message: str = (
@@ -174,9 +187,10 @@ class CffAuthorReview:
                 if self.duplicate_authors
                 else ""
             )
-            body += f"**Current `{cff_path}` file (contains all new authors{duplicate_author_error_message}).**"
-            if self.duplicate_author_invalidates_pr:
-                body += f" If the `{cff_path}` file has a duplicate author, the pull request will remain invalid."
+            body += f"**Current `{cff_path}` file (contains all qualified authors from this pull request{duplicate_author_error_message}).**"
+
+            if self.duplicate_authors and self.duplicate_author_invalidates_pr:
+                body += f"The pull request will remain invalid until no duplicate authors exist in the `{cff_path}` file."
             body += f"""
 ```yaml
 {yaml.dump(original_cff, sort_keys=False)}
